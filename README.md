@@ -164,7 +164,7 @@ async def ws_chat(websocket: fastapi.WebSocket):
 
 - **Start from `simple_chat`** for basic conversations, or **`fantasy_shop`** for tool calling and game state.
 - **Deferred tool calls:** delay `tool_handle.send()` and the AI keeps talking while waiting. See `hotel` for an example.
-- **Voice selection:** `gradbot.flagship_voices()` lists the built-in flagship voices, `gradbot.flagship_voice("emma")` picks one by name. Any voice from the Gradium voice library can be used.
+- **Voice selection:** any voice from the Gradium voice library can be used by passing its `voice_id` to `SessionConfig`.
 - **Mid-conversation changes:** `input_handle.send_config(new_config)` switches voice, language, or prompt without restarting.
 
 ## Integrations

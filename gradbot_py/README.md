@@ -107,8 +107,6 @@ async def ws(websocket: fastapi.WebSocket):
 
 - **`run(...)`:** Create clients and start a session. Returns `(SessionInputHandle, SessionOutputHandle)`.
 - **`create_clients(...)`:** Create reusable `GradbotClients` for multiple sessions.
-- **`flagship_voices()`:** List all built-in flagship voices.
-- **`flagship_voice(name)`:** Look up a flagship voice by name (case-insensitive).
 - **`init_logging()`:** Initialize debug logging.
 
 ### Enums
