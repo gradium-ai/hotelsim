@@ -43,6 +43,8 @@ export class VoiceClient {
     /** @type {AudioProcessor|null} */
     this._audio = null;
     this._connected = false;
+    this._audioReady = false;
+    this._messageQueue = [];
 
     // Pending audio timing from audio_timing JSON (consumed by next binary frame)
     this._pendingStopS = null;
@@ -93,6 +95,25 @@ export class VoiceClient {
       this._ws.onerror = () => reject(new Error('WebSocket connection failed'));
     });
 
+    // Install handlers before sending start. Both game voice flows use
+    // assistant_speaks_first, so the server can send the initial Ogg header
+    // pages immediately after start. Buffer everything until AudioProcessor is
+    // ready so we do not lose those first decoder-critical frames.
+    this._audioReady = false;
+    this._messageQueue = [];
+    this._ws.onmessage = (event) => {
+      if (!this._audioReady) {
+        this._messageQueue.push(event.data);
+        return;
+      }
+      this._handleMessageData(event.data);
+    };
+    this._ws.onclose = (e) => {
+      console.log(LOG, `WebSocket closed: code=${e.code}`);
+      this._connected = false;
+    };
+    this._ws.onerror = () => this._onError('WebSocket error');
+
     // Send start message (required by gradbot fastapi protocol)
     this._ws.send(JSON.stringify({ type: 'start' }));
     console.log(LOG, 'Sent start message');
@@ -110,14 +131,8 @@ export class VoiceClient {
     });
 
     await this._audio.start();
-
-    // Set up message handling
-    this._ws.onmessage = (event) => this._handleMessage(event);
-    this._ws.onclose = (e) => {
-      console.log(LOG, `WebSocket closed: code=${e.code}`);
-      this._connected = false;
-    };
-    this._ws.onerror = () => this._onError('WebSocket error');
+    this._audioReady = true;
+    this._flushQueuedMessages();
 
     this._connected = true;
     console.log(LOG, 'Connected and mic active');
@@ -127,12 +142,12 @@ export class VoiceClient {
    * Handle incoming WebSocket messages.
    * Binary = OggOpus audio; JSON = control messages.
    * audio_timing JSON always arrives immediately before its binary audio frame.
-   * @param {MessageEvent} event
+   * @param {ArrayBuffer|string} data
    */
-  _handleMessage(event) {
+  _handleMessageData(data) {
     // Binary = OggOpus audio chunk — decode + play via AudioProcessor
-    if (event.data instanceof ArrayBuffer) {
-      const bytes = new Uint8Array(event.data);
+    if (data instanceof ArrayBuffer) {
+      const bytes = new Uint8Array(data);
       if (bytes.length === 0) return;
 
       if (this._audio) {
@@ -154,7 +169,7 @@ export class VoiceClient {
       return;
     }
 
-    const msg = JSON.parse(event.data);
+    const msg = JSON.parse(data);
     console.log(LOG, 'JSON:', msg.type);
 
     switch (msg.type) {
@@ -183,6 +198,15 @@ export class VoiceClient {
       case 'event':
         console.log(LOG, 'Event:', msg.event);
         break;
+    }
+  }
+
+  _flushQueuedMessages() {
+    if (this._messageQueue.length === 0) return;
+    const queued = this._messageQueue;
+    this._messageQueue = [];
+    for (const data of queued) {
+      this._handleMessageData(data);
     }
   }
 
@@ -224,6 +248,8 @@ export class VoiceClient {
       this._ws = null;
     }
     this._connected = false;
+    this._audioReady = false;
+    this._messageQueue = [];
     this._pendingStopS = null;
     this._pendingTurnIdx = null;
     this._pendingInterrupted = false;
