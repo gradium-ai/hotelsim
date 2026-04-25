@@ -14,13 +14,26 @@
 
 set -euo pipefail
 
-export JIRA_EMAIL="${JIRA_EMAIL:-colin@gradium.ai}"
+export JIRA_EMAIL="${JIRA_EMAIL:-colin@gradium.sh}"
 
 INFISICAL_PROJECT_ID="${INFISICAL_PROJECT_ID:-c5cd7459-8df3-4d6a-b53f-4686cde222f1}"
 INFISICAL_ENV="${INFISICAL_ENV:-dev}"
 
 # Pull secrets and remap to the names the app expects.
+#
+# Quirk: the LLM_API_KEY secret in Infisical actually contains the LLM base URL
+# (value looks like "LLM_BASE_URL=https://..."). We extract that URL into
+# LLM_BASE_URL and reuse GRADIUM_TICATAG_API_KEY as the actual LLM key (the
+# Gradium LLM proxy authenticates with the Gradium API key).
 exec infisical run \
   --projectId "$INFISICAL_PROJECT_ID" \
   --env "$INFISICAL_ENV" \
-  --command "GRADIUM_API_KEY=\"\$GRADIUM_TICATAG_API_KEY\" JIRA_API_TOKEN=\"\$jira\" $*"
+  --command "
+    export GRADIUM_API_KEY=\"\$GRADIUM_TICATAG_API_KEY\"
+    export JIRA_API_TOKEN=\"\$jira\"
+    if [[ \"\$LLM_API_KEY\" == LLM_BASE_URL=* ]]; then
+      export LLM_BASE_URL=\"\${LLM_API_KEY#LLM_BASE_URL=}\"
+      export LLM_API_KEY=\"\$GRADIUM_TICATAG_API_KEY\"
+    fi
+    $*
+  "

@@ -383,7 +383,9 @@
       for (const k in turnBubbles) { if (turnBubbles[k] === removed) delete turnBubbles[k]; }
       if (userBubble === removed) userBubble = null;
     }
-    transcript.scrollTop = transcript.scrollHeight;
+    // The actual scroll container is the .panel-body wrapper, not .transcript itself.
+    const scroller = transcript.parentElement;
+    if (scroller) scroller.scrollTop = scroller.scrollHeight;
   }
   function resetTranscript() {
     transcript.innerHTML = '<div class="empty-state">La transcription apparaîtra ici une fois l\'appel démarré.</div>';

@@ -79,9 +79,9 @@ class JiraClient:
 
     async def list_recent_tickets(self, limit: int = 20) -> list[dict]:
         jql = f'project = {JIRA_PROJECT_KEY} AND summary ~ "Voice IT Support" ORDER BY created DESC'
-        resp = await self._client.get(
-            "/rest/api/3/search",
-            params={"jql": jql, "maxResults": limit, "fields": "summary,status,created"},
+        resp = await self._client.post(
+            "/rest/api/3/search/jql",
+            json={"jql": jql, "maxResults": limit, "fields": ["summary", "status", "created"]},
         )
         if resp.status_code >= 400:
             logger.warning("Jira list failed %s: %s", resp.status_code, resp.text)
