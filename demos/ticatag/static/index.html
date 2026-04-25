@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ticatag — Support Technique</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --blue: #0079C1;
+    --blue-dark: #005A91;
+    --blue-light: #E6F2FA;
+    --white: #FFFFFF;
+    --gray-50: #F7F9FB;
+    --gray-100: #EEF2F5;
+    --gray-200: #E0E6EB;
+    --gray-500: #6B7682;
+    --gray-900: #14202B;
+    --green: #2BA84A;
+    --red: #D64545;
+    --shadow-sm: 0 1px 2px rgba(20,32,43,0.06);
+    --shadow-md: 0 4px 16px rgba(20,32,43,0.08);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; height: 100%; }
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: var(--gray-50);
+    color: var(--gray-900);
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  /* --------- Layout --------- */
+  .app { display: grid; grid-template-rows: 64px 1fr; height: 100vh; }
+
+  header.topbar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 24px;
+    background: var(--white);
+    border-bottom: 1px solid var(--gray-200);
+    box-shadow: var(--shadow-sm);
+  }
+  .brand { display: flex; align-items: center; gap: 12px; }
+  .brand img { height: 36px; width: auto; }
+  .brand .label {
+    font-weight: 600; color: var(--gray-500);
+    font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em;
+    border-left: 1px solid var(--gray-200); padding-left: 12px;
+  }
+  .topbar-right { display: flex; align-items: center; gap: 16px; }
+  .phone-pill {
+    display: flex; align-items: center; gap: 8px;
+    background: var(--blue-light); color: var(--blue-dark);
+    padding: 6px 12px; border-radius: 999px;
+    font-weight: 500; font-size: 13px;
+  }
+  .phone-pill .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--gray-500); }
+  .phone-pill.ready .dot { background: var(--green); }
+  .status {
+    font-size: 12px; color: var(--gray-500);
+    display: flex; align-items: center; gap: 6px;
+  }
+  .status .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--gray-500); }
+  .status.connecting .dot { background: #E0A82E; }
+  .status.connected .dot { background: var(--green); }
+  .status.error .dot { background: var(--red); }
+
+  main {
+    display: grid;
+    grid-template-columns: 1fr 380px;
+    gap: 16px;
+    padding: 16px;
+    overflow: hidden;
+  }
+
+  .panel {
+    background: var(--white);
+    border: 1px solid var(--gray-200);
+    border-radius: 12px;
+    box-shadow: var(--shadow-sm);
+    display: flex; flex-direction: column;
+    overflow: hidden;
+  }
+  .panel-header {
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--gray-200);
+    font-weight: 600;
+    font-size: 13px;
+    color: var(--gray-900);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .panel-body { flex: 1; overflow: auto; padding: 16px 18px; }
+
+  /* --------- Left: call --------- */
+  .call-controls {
+    display: flex; align-items: center; gap: 16px;
+    padding: 16px 18px;
+    border-bottom: 1px solid var(--gray-200);
+  }
+  .mic-btn {
+    width: 56px; height: 56px; border-radius: 50%;
+    background: var(--blue); color: white;
+    border: none; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 4px 12px rgba(0,121,193,0.35);
+    transition: background 0.15s, transform 0.1s;
+  }
+  .mic-btn:hover { background: var(--blue-dark); }
+  .mic-btn:active { transform: scale(0.96); }
+  .mic-btn.active { background: var(--red); box-shadow: 0 4px 12px rgba(214,69,69,0.35); }
+  .mic-btn svg { width: 24px; height: 24px; }
+  .call-meta { display: flex; flex-direction: column; gap: 2px; }
+  .call-meta .title { font-weight: 600; font-size: 14px; }
+  .call-meta .subtitle { font-size: 12px; color: var(--gray-500); }
+  .call-options {
+    margin-left: auto;
+    display: flex; align-items: center; gap: 14px;
+    font-size: 12px; color: var(--gray-500);
+  }
+  .call-options label { display: flex; align-items: center; gap: 6px; cursor: pointer; }
+
+  .transcript { display: flex; flex-direction: column; gap: 10px; }
+  .msg {
+    max-width: 72%;
+    padding: 10px 14px;
+    border-radius: 14px;
+    font-size: 14px;
+    line-height: 1.45;
+    word-wrap: break-word;
+  }
+  .msg-user {
+    align-self: flex-end;
+    background: var(--blue);
+    color: white;
+    border-bottom-right-radius: 4px;
+  }
+  .msg-agent {
+    align-self: flex-start;
+    background: var(--gray-100);
+    color: var(--gray-900);
+    border-bottom-left-radius: 4px;
+  }
+  .empty-state {
+    color: var(--gray-500);
+    font-size: 13px;
+    text-align: center;
+    padding: 32px 16px;
+  }
+
+  /* --------- Right: tickets --------- */
+  .ticket {
+    border: 1px solid var(--gray-200);
+    border-radius: 8px;
+    padding: 12px 14px;
+    margin-bottom: 10px;
+    background: var(--white);
+    transition: border-color 0.15s;
+  }
+  .ticket:hover { border-color: var(--blue); }
+  .ticket.new { animation: flash 1.6s ease-out; }
+  @keyframes flash {
+    0% { background: var(--blue-light); border-color: var(--blue); }
+    100% { background: var(--white); border-color: var(--gray-200); }
+  }
+  .ticket-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+  .ticket-key {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-weight: 600;
+    color: var(--blue-dark);
+    font-size: 13px;
+  }
+  .ticket-key a { color: inherit; text-decoration: none; }
+  .ticket-key a:hover { text-decoration: underline; }
+  .ticket-status {
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: var(--gray-100);
+    color: var(--gray-500);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .ticket-summary { font-size: 13px; color: var(--gray-900); }
+
+  .refresh-btn {
+    background: none; border: none; cursor: pointer;
+    color: var(--gray-500); padding: 4px;
+    display: flex; align-items: center;
+  }
+  .refresh-btn:hover { color: var(--blue); }
+  .refresh-btn svg { width: 16px; height: 16px; }
+  .refresh-btn.spinning svg { animation: spin 0.8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <header class="topbar">
+    <div class="brand">
+      <img src="/static/logo.avif" alt="Ticatag">
+      <span class="label">Support Technique · Voice Agent</span>
+    </div>
+    <div class="topbar-right">
+      <div class="phone-pill" id="phonePill">
+        <span class="dot"></span>
+        <span id="phoneNumber">📞 Numéro à provisionner</span>
+      </div>
+      <div class="status" id="status">
+        <span class="dot"></span><span class="text">Inactif</span>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <section class="panel">
+      <div class="call-controls">
+        <button class="mic-btn" id="micBtn" aria-label="Démarrer l'appel">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11h-2z"/></svg>
+        </button>
+        <div class="call-meta">
+          <div class="title" id="callTitle">Démarrer l'appel</div>
+          <div class="subtitle" id="callSubtitle">Cliquez sur le micro pour parler à l'agent</div>
+        </div>
+        <div class="call-options">
+          <label><input type="checkbox" id="echoCancellation" checked> Anti-écho</label>
+        </div>
+      </div>
+      <div class="panel-body">
+        <div class="transcript" id="transcript">
+          <div class="empty-state">La transcription apparaîtra ici une fois l'appel démarré.</div>
+        </div>
+      </div>
+    </section>
+
+    <aside class="panel">
+      <div class="panel-header">
+        <span>Tickets Jira récents</span>
+        <button class="refresh-btn" id="refreshBtn" aria-label="Rafraîchir">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+        </button>
+      </div>
+      <div class="panel-body">
+        <div id="ticketsList">
+          <div class="empty-state">Aucun ticket pour le moment.</div>
+        </div>
+      </div>
+    </aside>
+  </main>
+</div>
+
+<!-- Powered by Gradium Badge -->
+<style>
+#gradium-badge, #gradium-badge * { font-family: 'Inter Tight', sans-serif !important; }
+#gradium-badge { position: fixed; bottom: 24px; right: 24px; z-index: 999; transition: opacity 0.3s, transform 0.3s; }
+#gradium-badge.hidden { opacity: 0; pointer-events: none; transform: translateY(8px); }
+#gradium-badge-inner {
+  display: flex; align-items: center;
+  background: #1a1a1a; color: #FCFBF8;
+  border-radius: 8px; border: 1px solid rgba(255,255,255,0.06);
+  box-shadow: 0 0 10px 1px rgba(174,210,255,0.08), 0 2px 8px rgba(0,0,0,0.3);
+  overflow: hidden;
+}
+#gradium-badge-cta {
+  display: flex; align-items: center; gap: 5px;
+  padding: 7px 12px; text-decoration: none; color: #FFFFFF;
+  font-size: 12px; font-weight: 400; white-space: nowrap;
+  transition: background 0.15s;
+}
+#gradium-badge-cta:hover { background: #2a2a2a; }
+#gradium-badge-cta svg { flex-shrink: 0; }
+#gradium-badge-divider { width: 1px; height: 16px; background: rgba(255,255,255,0.1); flex-shrink: 0; }
+#gradium-badge-close {
+  display: flex; align-items: center; justify-content: center;
+  border: none; background: none; cursor: pointer; color: #FFFFFF;
+  transition: color 0.15s, background 0.15s; padding: 7px 10px;
+}
+#gradium-badge-close:hover { color: #FCFBF8; background: #2a2a2a; }
+</style>
+<aside id="gradium-badge" role="complementary" aria-label="Powered by Gradium">
+  <div id="gradium-badge-inner">
+    <a id="gradium-badge-cta" href="https://gradium.ai/" target="_blank" rel="noopener noreferrer" aria-label="Powered by Gradium">
+      <span>Powered by</span>
+      <svg width="58" height="13" viewBox="0 0 775 170" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M84.1061 103.194H124.196L124.045 104.369C123.576 110.011 121.462 115.575 117.703 121.059C113.943 126.546 108.734 131.049 102.079 134.575C95.4205 138.102 87.9429 139.864 79.6428 139.864C70.3995 139.864 62.0597 137.595 54.6218 133.047C47.1812 128.504 41.3079 122.04 37.0016 113.655C32.6928 105.273 30.5414 95.5947 30.5414 84.6236C30.5414 73.6561 32.6928 63.9785 37.0016 55.5926C41.3079 47.2111 47.1812 40.7473 54.6218 36.2003C62.0597 31.6568 70.3995 29.3833 79.6428 29.3833C89.0406 29.3833 97.5754 31.8917 105.251 36.9049C112.922 41.9224 118.484 48.3465 121.931 56.1806H153.648C150.829 46.4659 146.089 37.2977 139.434 28.6779C132.775 20.0615 124.317 13.1263 114.061 7.8747C103.801 2.62578 92.3294 0 79.6429 0C65.0767 0 51.6851 3.6067 39.4689 10.813C27.2518 18.0229 17.6202 28.0537 10.5714 40.9009C3.5235 53.7526 0 68.3268 0 84.6236C0 100.924 3.48291 115.498 10.454 128.346C17.4216 141.197 27.0171 151.228 39.2342 158.434C51.4504 165.644 64.9188 169.247 79.6429 169.247C86.6907 169.247 93.3865 168.227 99.7294 166.191C106.073 164.157 111.631 161.49 116.41 158.199C121.186 154.909 125.063 151.464 128.039 147.857H129.215L131.564 166.897H154.822V80.8624H84.1061V103.194Z" fill="#7E7E7E"/>
+        <path d="M201.854 50.7736C198.33 52.6542 195.471 55.0858 193.279 58.0612H192.104L189.755 47.9536H165.086V166.897H193.749V98.4924C193.749 90.8164 195.705 84.9759 199.622 80.9798C203.535 76.9838 209.254 74.9857 216.772 74.9857H236.742V47.9536H214.893C209.724 47.9536 205.378 48.8939 201.854 50.7736Z" fill="#7E7E7E"/>
+        <path d="M318.873 51.3617C311.274 47.5236 302.31 45.6024 291.973 45.6024C282.106 45.6024 273.49 47.3656 266.13 50.8919C258.766 54.4174 253.011 59.0818 248.862 64.8782C244.711 70.6771 242.321 76.8664 241.696 83.4485H270.124C270.748 81.0973 271.963 78.8282 273.765 76.6315C275.564 74.4383 278.031 72.676 281.166 71.342C284.297 70.0132 287.898 69.3439 291.973 69.3439C298.705 69.3439 304.031 71.342 307.948 75.3389C311.862 79.335 313.822 84.5468 313.822 90.97V93.7909H285.629C274.977 93.7909 266.012 95.4367 258.73 98.7273C251.446 102.019 246.043 106.566 242.519 112.361C238.995 118.161 237.233 124.901 237.233 132.577C237.233 139.475 238.955 145.704 242.401 151.265C245.845 156.829 250.819 161.219 257.32 164.428C263.818 167.639 271.376 169.247 279.992 169.247C287.979 169.247 295.027 167.797 301.135 164.899C307.243 162.001 311.626 158.75 314.292 155.144H315.467L317.816 166.897H342.719V90.97C342.719 82.1956 340.641 74.3615 336.493 67.4633C332.341 60.5696 326.468 55.2032 318.873 51.3617ZM313.822 118.238C313.822 123.725 312.683 128.581 310.416 132.812C308.143 137.044 304.813 140.297 300.43 142.567C296.044 144.841 290.875 145.976 284.925 145.976C278.816 145.976 274.154 144.565 270.946 141.745C267.734 138.924 266.13 135.163 266.13 130.462C266.13 125.606 267.97 121.764 271.651 118.943C275.329 116.122 280.931 114.712 288.449 114.712H313.822V118.238Z" fill="#7E7E7E"/>
+        <path d="M443.268 60.4115H442.094C438.804 56.1806 434.223 52.6542 428.35 49.8333C422.477 47.0133 415.7 45.6024 408.028 45.6024C397.845 45.6024 388.565 48.1885 380.188 53.3597C371.807 58.5309 365.189 65.8185 360.336 75.2206C355.48 84.6236 353.053 95.3598 353.053 107.425C353.053 119.336 355.48 129.991 360.336 139.394C365.189 148.797 371.807 156.124 380.188 161.373C388.565 166.625 397.845 169.247 408.028 169.247C416.17 169.247 423.218 167.797 429.172 164.899C435.123 162.001 439.979 158.199 443.739 153.498H444.913L447.262 166.897H472.166V2.35031H443.268V60.4115ZM439.274 125.878C436.609 131.13 432.931 135.244 428.233 138.219C423.534 141.197 418.365 142.685 412.727 142.685C407.088 142.685 401.92 141.197 397.221 138.219C392.522 135.244 388.8 131.13 386.062 125.878C383.319 120.629 381.95 114.477 381.95 107.425C381.95 100.373 383.319 94.1838 386.062 88.8545C388.8 83.5288 392.522 79.4524 397.221 76.6315C401.92 73.8106 407.088 72.4006 412.727 72.4006C418.365 72.4006 423.534 73.8106 428.233 76.6315C432.931 79.4524 436.609 83.5288 439.274 88.8545C441.936 94.1838 443.268 100.373 443.268 107.425C443.268 114.477 441.936 120.629 439.274 125.878Z" fill="#7E7E7E"/>
+        <path d="M512.103 2.35031H481.326V29.1476H512.103V2.35031Z" fill="#7E7E7E"/>
+        <path d="M510.929 47.9536H482.266V166.897H510.929V47.9536Z" fill="#7E7E7E"/>
+        <path d="M769.263 69.7344C765.434 62.5508 760.204 56.9298 753.57 52.8667C746.932 48.806 739.554 46.7744 731.438 46.7744C723.007 46.7744 715.511 48.5315 708.955 52.0454C702.395 55.5593 697.555 59.6592 694.433 64.3445H693.262C690.762 59.9747 686.624 55.9529 680.849 52.281C675.071 48.6137 668.2 46.7744 660.238 46.7744C653.991 46.7744 648.212 48.1814 642.906 50.9929C638.013 53.5822 634.301 56.4538 631.664 59.5749C631.439 59.8398 631.171 60.0947 630.963 60.3635H629.792L627.451 49.1171H602.857V116.588C602.857 121.429 601.722 125.88 599.461 129.939C597.195 134.002 594.074 137.166 590.092 139.429C586.11 141.693 581.62 142.824 576.625 142.824C571.783 142.824 567.411 141.693 563.509 139.429C559.606 137.166 556.56 134.039 554.376 130.058C552.187 126.075 551.096 121.586 551.096 116.588V49.1172H522.523V120.335C522.523 130.175 524.514 138.882 528.496 146.457C532.476 154.034 538.017 159.849 545.123 163.908C552.228 167.968 560.308 170 569.365 170C576.859 170 583.611 168.63 589.624 165.9C595.35 163.298 599.75 160.225 602.857 156.698C603.011 156.524 603.178 156.354 603.326 156.177H604.496L606.838 167.657H631.43V97.3773C631.43 96.2031 631.516 95.062 631.662 93.9445C632.061 90.9001 632.99 88.0593 634.475 85.4284C636.502 81.8388 639.237 79.0271 642.672 76.9958C646.105 74.9687 649.853 73.9506 653.914 73.9506C657.973 73.9506 661.564 74.8864 664.688 76.7624C667.811 78.636 670.229 81.3288 671.948 84.8427C673.666 88.3568 674.526 92.5387 674.526 97.3773V167.657H703.332V97.3773C703.332 93.0056 704.306 89.0246 706.259 85.4284C708.211 81.8388 710.903 79.0273 714.34 76.9958C717.773 74.9687 721.52 73.9506 725.582 73.9506C729.799 73.9506 733.429 74.8864 736.474 76.7624C739.518 78.636 741.897 81.3288 743.616 84.8427C745.332 88.3568 746.194 92.5387 746.194 97.3773V167.657H775V94.0966C775 85.0417 773.088 76.9179 769.263 69.7344Z" fill="#7E7E7E"/>
+      </svg>
+    </a>
+    <span id="gradium-badge-divider" aria-hidden="true"></span>
+    <button id="gradium-badge-close" aria-label="Dismiss" title="Dismiss" type="button">
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 16 16" aria-hidden="true">
+        <path fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" d="M4.5 4.5l7 7M11.5 4.5l-7 7"/>
+      </svg>
+    </button>
+  </div>
+</aside>
+
+<script src="/static/js/opus-encoder.js"></script>
+<script src="/static/js/audio-processor.js"></script>
+<script src="/static/js/synced-audio-player.js"></script>
+<script>
+(function() {
+  // ----- Gradium badge dismiss -----
+  const badge = document.getElementById('gradium-badge');
+  const badgeClose = document.getElementById('gradium-badge-close');
+  if (badgeClose && badge) {
+    badgeClose.addEventListener('click', () => badge.classList.add('hidden'));
+  }
+
+  // ----- DOM refs -----
+  const micBtn = document.getElementById('micBtn');
+  const echoCb = document.getElementById('echoCancellation');
+  const transcript = document.getElementById('transcript');
+  const statusEl = document.getElementById('status');
+  const callTitle = document.getElementById('callTitle');
+  const callSubtitle = document.getElementById('callSubtitle');
+  const ticketsList = document.getElementById('ticketsList');
+  const refreshBtn = document.getElementById('refreshBtn');
+
+  // ----- State -----
+  let ws = null;
+  let player = null;
+  let isRecording = false;
+  let turnBubbles = {};
+  let userBubble = null;
+  let hadAssistantBubble = false;
+  let knownTicketKeys = new Set();
+
+  // ----- Status helpers -----
+  function setStatus(state, text) {
+    statusEl.className = 'status ' + state;
+    statusEl.querySelector('.text').textContent = text;
+  }
+  function setCallMeta(title, subtitle) {
+    callTitle.textContent = title;
+    callSubtitle.textContent = subtitle;
+  }
+
+  // ----- Transcript -----
+  function clearEmptyState() {
+    const empty = transcript.querySelector('.empty-state');
+    if (empty) empty.remove();
+  }
+  function getBubbleForTurn(turnIdx, isUser) {
+    clearEmptyState();
+    if (isUser) {
+      if (userBubble && !hadAssistantBubble) return userBubble;
+      hadAssistantBubble = false;
+      userBubble = document.createElement('div');
+      userBubble.className = 'msg msg-user';
+      const tx = document.createElement('span');
+      tx.className = 'msg-text';
+      userBubble.appendChild(tx);
+      transcript.appendChild(userBubble);
+      return userBubble;
+    }
+    let bubble = turnBubbles[turnIdx];
+    if (!bubble) {
+      hadAssistantBubble = true;
+      bubble = document.createElement('div');
+      bubble.className = 'msg msg-agent';
+      const tx = document.createElement('span');
+      tx.className = 'msg-text';
+      bubble.appendChild(tx);
+      transcript.appendChild(bubble);
+      turnBubbles[turnIdx] = bubble;
+    }
+    return bubble;
+  }
+  function appendTranscript(text, turnIdx, isUser) {
+    const bubble = getBubbleForTurn(turnIdx, isUser);
+    bubble.querySelector('.msg-text').textContent += text + ' ';
+    while (transcript.children.length > 60) {
+      const removed = transcript.removeChild(transcript.firstChild);
+      for (const k in turnBubbles) { if (turnBubbles[k] === removed) delete turnBubbles[k]; }
+      if (userBubble === removed) userBubble = null;
+    }
+    transcript.scrollTop = transcript.scrollHeight;
+  }
+  function resetTranscript() {
+    transcript.innerHTML = '<div class="empty-state">La transcription apparaîtra ici une fois l\'appel démarré.</div>';
+    turnBubbles = {};
+    userBubble = null;
+    hadAssistantBubble = false;
+  }
+
+  // ----- Tickets -----
+  function renderTickets(tickets, opts = {}) {
+    if (!tickets || tickets.length === 0) {
+      ticketsList.innerHTML = '<div class="empty-state">Aucun ticket pour le moment.</div>';
+      return;
+    }
+    const flashKey = opts.flashKey || null;
+    ticketsList.innerHTML = tickets.map(t => `
+      <div class="ticket${t.key === flashKey ? ' new' : ''}">
+        <div class="ticket-head">
+          <span class="ticket-key"><a href="${t.url}" target="_blank" rel="noopener">${t.key}</a></span>
+          <span class="ticket-status">${t.status || 'Nouveau'}</span>
+        </div>
+        <div class="ticket-summary">${escapeHtml(t.summary || '')}</div>
+      </div>
+    `).join('');
+    tickets.forEach(t => knownTicketKeys.add(t.key));
+  }
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+  async function refreshTickets(flashKey = null) {
+    refreshBtn.classList.add('spinning');
+    try {
+      const r = await fetch('/api/tickets');
+      const tickets = await r.json();
+      renderTickets(tickets, { flashKey });
+    } catch (e) {
+      console.warn('Ticket refresh failed', e);
+    } finally {
+      setTimeout(() => refreshBtn.classList.remove('spinning'), 300);
+    }
+  }
+  refreshBtn.addEventListener('click', () => refreshTickets());
+
+  // ----- Custom WS events -----
+  function handleCustomEvent(msg) {
+    if (msg.type === 'ticket_created' && msg.ticket) {
+      refreshTickets(msg.ticket.key);
+    }
+  }
+
+  // ----- Call flow -----
+  async function startCall() {
+    micBtn.classList.add('active');
+    setStatus('connecting', 'Connexion…');
+    setCallMeta('Appel en cours', 'Parlez après le bip');
+    resetTranscript();
+
+    try {
+      const audioConfig = await fetch('/api/audio-config').then(r => r.json());
+
+      player = new SyncedAudioPlayer({
+        basePath: '/static/js',
+        sampleRate: 24000,
+        pcmOutput: audioConfig.pcm || false,
+        echoCancellation: echoCb.checked,
+        onEncodedAudio: (opusData) => {
+          if (isRecording && ws?.readyState === WebSocket.OPEN) {
+            ws.send(opusData);
+          }
+        },
+        onText: ({ text, turnIdx, isUser }) => {
+          appendTranscript(text, turnIdx, isUser);
+        },
+        onEvent: (eventType, msg) => {
+          handleCustomEvent(msg);
+        },
+      });
+
+      await player.start();
+
+      const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const wsUrl = `${protocol}//${location.host}/ws/chat`;
+      ws = new WebSocket(wsUrl);
+
+      ws.onopen = () => {
+        ws.send(JSON.stringify({ type: 'start', speed: 1.0 }));
+        isRecording = true;
+        setStatus('connected', 'En appel');
+      };
+      ws.onmessage = (event) => player.handleMessage(event.data);
+      ws.onclose = () => endCall();
+      ws.onerror = () => setStatus('error', 'Erreur de connexion');
+    } catch (e) {
+      console.error(e);
+      setStatus('error', 'Échec du démarrage');
+      micBtn.classList.remove('active');
+    }
+  }
+
+  function endCall() {
+    isRecording = false;
+    if (ws?.readyState === WebSocket.OPEN) {
+      try { ws.send(JSON.stringify({ type: 'stop' })); } catch (_) {}
+    }
+    ws?.close();
+    ws = null;
+    player?.stop();
+    player = null;
+    micBtn.classList.remove('active');
+    setStatus('', 'Inactif');
+    setCallMeta('Démarrer l\'appel', 'Cliquez sur le micro pour parler à l\'agent');
+    refreshTickets();
+  }
+
+  micBtn.addEventListener('click', () => {
+    if (isRecording) endCall(); else startCall();
+  });
+
+  // Initial ticket load + periodic background refresh
+  refreshTickets();
+  setInterval(() => { if (!isRecording) refreshTickets(); }, 30000);
+})();
+</script>
+</body>
+</html>
