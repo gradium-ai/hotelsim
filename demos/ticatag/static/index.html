@@ -150,17 +150,43 @@
     padding: 32px 16px;
   }
   .phone-call-banner {
-    display: flex; align-items: center; gap: 7px;
-    padding: 6px 12px;
-    border-radius: 8px;
-    background: var(--blue-light);
+    position: sticky;
+    top: -2px;
+    z-index: 2;
+    align-self: center;
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 7px 14px;
+    border-radius: 999px;
+    background: linear-gradient(180deg, var(--blue-light) 0%, #DBEBF7 100%);
     border: 1px solid #b3d9f2;
     color: var(--blue-dark);
     font-size: 12px;
     font-weight: 600;
-    align-self: center;
-    margin: 4px 0 6px;
     letter-spacing: 0.02em;
+    margin: 4px auto 8px;
+    box-shadow: var(--shadow-sm);
+  }
+  .phone-call-banner .phone-emoji {
+    font-size: 14px;
+    line-height: 1;
+    animation: phone-wiggle 2.4s ease-in-out infinite;
+    transform-origin: 50% 60%;
+  }
+  .phone-call-banner .live-dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--green);
+    box-shadow: 0 0 0 0 rgba(43,168,74,0.6);
+    animation: live-pulse 1.6s ease-out infinite;
+  }
+  @keyframes phone-wiggle {
+    0%, 88%, 100% { transform: rotate(0deg); }
+    92% { transform: rotate(-12deg); }
+    96% { transform: rotate(12deg); }
+  }
+  @keyframes live-pulse {
+    0%   { box-shadow: 0 0 0 0   rgba(43,168,74,0.6); }
+    70%  { box-shadow: 0 0 0 8px rgba(43,168,74,0);   }
+    100% { box-shadow: 0 0 0 0   rgba(43,168,74,0);   }
   }
 
   /* --------- Right: tickets --------- */
@@ -413,7 +439,12 @@
     clearEmptyState();
     const banner = document.createElement('div');
     banner.className = 'phone-call-banner';
-    banner.innerHTML = '📞 <span>Appel entrant</span>';
+    banner.setAttribute('role', 'status');
+    banner.setAttribute('aria-live', 'polite');
+    banner.innerHTML =
+      '<span class="phone-emoji" aria-hidden="true">📞</span>' +
+      '<span class="phone-label">Connecté par téléphone</span>' +
+      '<span class="live-dot" aria-hidden="true"></span>';
     transcript.appendChild(banner);
     const scroller = transcript.parentElement;
     if (scroller) scroller.scrollTop = scroller.scrollHeight;
