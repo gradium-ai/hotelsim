@@ -8,6 +8,7 @@ Run locally with:
 from __future__ import annotations
 
 import asyncio
+import audioop
 import base64
 import json
 import logging
@@ -23,6 +24,13 @@ from fastapi.responses import HTMLResponse, PlainTextResponse
 import gradbot
 
 from jira_client import JiraClient
+
+# Twilio Media Streams uses μ-law 8 kHz. gradbot's Python AudioFormat.Ulaw is
+# hard-wired to 24 kHz (input) / 48 kHz (output) — see gradbot_py/src/lib.rs.
+# So the bridge has to resample on both sides.
+TWILIO_RATE = 8000
+GRADBOT_INPUT_RATE = 24000
+GRADBOT_OUTPUT_RATE = 48000
 
 gradbot.init_logging()
 logger = logging.getLogger(__name__)
@@ -250,15 +258,23 @@ async def twilio_stream(websocket: fastapi.WebSocket):
 
     stop_event = asyncio.Event()
     pending_tool_tasks: set[asyncio.Task] = set()
+    in_state = None   # audioop.ratecv state for 8 kHz -> 24 kHz (caller -> gradbot)
+    out_state = None  # audioop.ratecv state for 48 kHz -> 8 kHz (gradbot -> caller)
 
     async def consumer() -> None:
+        nonlocal out_state
         try:
             while not stop_event.is_set():
                 msg = await output_handle.receive()
                 if msg is None:
                     return
                 if msg.msg_type == "audio":
-                    payload = base64.b64encode(msg.data).decode("ascii")
+                    pcm_48k = audioop.ulaw2lin(msg.data, 2)
+                    pcm_8k, out_state = audioop.ratecv(
+                        pcm_48k, 2, 1, GRADBOT_OUTPUT_RATE, TWILIO_RATE, out_state
+                    )
+                    ulaw_8k = audioop.lin2ulaw(pcm_8k, 2)
+                    payload = base64.b64encode(ulaw_8k).decode("ascii")
                     await websocket.send_text(json.dumps({
                         "event": "media",
                         "streamSid": stream_sid,
@@ -277,14 +293,20 @@ async def twilio_stream(websocket: fastapi.WebSocket):
             stop_event.set()
 
     async def producer() -> None:
+        nonlocal in_state
         try:
             while not stop_event.is_set():
                 raw = await websocket.receive_text()
                 evt = json.loads(raw)
                 kind = evt.get("event")
                 if kind == "media":
-                    audio = base64.b64decode(evt["media"]["payload"])
-                    await input_handle.send_audio(audio)
+                    ulaw_8k = base64.b64decode(evt["media"]["payload"])
+                    pcm_8k = audioop.ulaw2lin(ulaw_8k, 2)
+                    pcm_24k, in_state = audioop.ratecv(
+                        pcm_8k, 2, 1, TWILIO_RATE, GRADBOT_INPUT_RATE, in_state
+                    )
+                    ulaw_24k = audioop.lin2ulaw(pcm_24k, 2)
+                    await input_handle.send_audio(ulaw_24k)
                 elif kind == "stop":
                     logger.info("twilio stop received")
                     return
