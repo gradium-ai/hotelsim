@@ -177,18 +177,27 @@ async def list_tickets():
 async def twilio_voice(request: fastapi.Request):
     """TwiML stub. Wire up once a Twilio number is provisioned.
 
+    IMPORTANT: Twilio dials the literal URL you write in the TwiML, so the
+    <Stream url=...> must include any reverse-proxy path prefix (e.g.
+    "/ticatag") that Caddy strips on the way in. Set PUBLIC_WS_URL to the
+    full external WebSocket URL — e.g.
+        PUBLIC_WS_URL=wss://gradgtm.com/ticatag/twilio/stream
+
     Steps to wire later:
-      1. Provision a French Twilio number.
-      2. Set its Voice webhook to POST https://<host>/twilio/voice
-      3. Replace this stub to <Connect><Stream url="wss://<host>/twilio/stream"/></Connect>
-      4. Add a /twilio/stream WebSocket that bridges Twilio Media Streams (μ-law 8kHz)
-         to gradbot.websocket.handle_session — see gradbot docs for the bridge pattern.
+      1. Set Twilio Voice webhook to POST https://<external>/twilio/voice
+         (the external URL — including any path prefix).
+      2. Replace this <Say> stub with <Connect><Stream url="{PUBLIC_WS_URL}"/></Connect>.
+      3. Add a /twilio/stream WebSocket that bridges Twilio Media Streams
+         (μ-law 8kHz, base64 in JSON frames) to gradbot.websocket.handle_session.
+      4. Validate the X-Twilio-Signature header on /twilio/voice against
+         TWILIO_AUTH_TOKEN so the endpoint can't be spoofed.
     """
-    public_host = os.environ.get("PUBLIC_HOST", request.url.hostname)
+    fallback_host = request.headers.get("x-forwarded-host") or request.url.hostname
+    public_ws = os.environ.get("PUBLIC_WS_URL", f"wss://{fallback_host}/twilio/stream")
     twiml = (
         f'<?xml version="1.0" encoding="UTF-8"?>\n'
         f'<Response>\n'
-        f'  <!-- TODO: replace with <Connect><Stream url="wss://{public_host}/twilio/stream"/></Connect> -->\n'
+        f'  <!-- TODO: replace with <Connect><Stream url="{public_ws}"/></Connect> -->\n'
         f'  <Say language="fr-FR">Bonjour, le support technique Ticatag est en cours de configuration. '
         f'Veuillez réessayer plus tard.</Say>\n'
         f'</Response>\n'
