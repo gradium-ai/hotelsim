@@ -34,7 +34,48 @@
   }
 
   /* --------- Layout --------- */
-  .app { display: grid; grid-template-rows: 64px 1fr; height: 100vh; }
+  .app { display: grid; grid-template-rows: 64px auto 1fr; height: 100vh; }
+
+  /* --------- Support phone banner --------- */
+  .support-banner {
+    display: flex; align-items: center; justify-content: center; gap: 14px;
+    padding: 12px 24px;
+    background: linear-gradient(180deg, var(--blue-light) 0%, #DBEBF7 100%);
+    border-bottom: 1px solid #b3d9f2;
+    color: var(--blue-dark);
+    font-size: 14px;
+    font-weight: 500;
+    box-shadow: var(--shadow-sm);
+  }
+  .support-banner .icon {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    background: var(--blue);
+    color: var(--white);
+    font-size: 14px;
+    box-shadow: 0 2px 6px rgba(0,121,193,0.35);
+  }
+  .support-banner .number {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-weight: 700;
+    font-size: 15px;
+    color: var(--blue-dark);
+    text-decoration: none;
+    padding: 2px 10px;
+    border-radius: 6px;
+    background: rgba(255,255,255,0.7);
+    border: 1px solid rgba(0,121,193,0.2);
+    transition: background 0.15s, border-color 0.15s;
+    white-space: nowrap;
+  }
+  .support-banner .number:hover {
+    background: var(--white);
+    border-color: var(--blue);
+  }
+  @media (max-width: 640px) {
+    .support-banner { flex-direction: column; gap: 8px; padding: 10px 16px; text-align: center; }
+  }
 
   header.topbar {
     display: flex; align-items: center; justify-content: space-between;
@@ -257,15 +298,23 @@
       <span class="label">Support Technique · Voice Agent</span>
     </div>
     <div class="topbar-right">
-      <div class="phone-pill" id="phonePill">
+      <div class="phone-pill ready" id="phonePill">
         <span class="dot"></span>
-        <span id="phoneNumber">📞 Numéro à provisionner</span>
+        <span id="phoneNumber">📞 +1 (254) 232‑6149</span>
       </div>
       <div class="status" id="status">
         <span class="dot"></span><span class="text">Inactif</span>
       </div>
     </div>
   </header>
+
+  <div class="support-banner" role="region" aria-label="Numéro de support technique">
+    <span class="icon" aria-hidden="true">📞</span>
+    <span class="copy">
+      Besoin d'aide&nbsp;? Appelez notre support technique au
+      <a class="number" href="tel:+12542326149">+1&nbsp;(254)&nbsp;232‑6149</a>
+    </span>
+  </div>
 
   <main>
     <section class="panel">
