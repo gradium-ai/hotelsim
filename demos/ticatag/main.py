@@ -18,9 +18,10 @@ from pathlib import Path
 from typing import Awaitable, Callable
 
 import fastapi
-from fastapi.responses import HTMLResponse, PlainTextResponse
+from fastapi.responses import HTMLResponse, PlainTextResponse, StreamingResponse
 
 import gradbot
+from gradbot.schemas import IGNORE_WORDS, sanitize
 
 from jira_client import JiraClient
 
@@ -92,6 +93,46 @@ async def lifespan(app: fastapi.FastAPI):
 
 
 app = fastapi.FastAPI(title="Ticatag IT Support", lifespan=lifespan)
+
+# ---------------------------------------------------------------------------
+# Phone-event SSE broadcast
+# ---------------------------------------------------------------------------
+_phone_event_listeners: list[asyncio.Queue] = []
+
+
+async def broadcast_phone_event(event: dict) -> None:
+    """Fan-out a phone transcript/ticket event to all connected SSE clients."""
+    for q in list(_phone_event_listeners):
+        await q.put(event)
+
+
+@app.get("/api/phone-events")
+async def phone_events():
+    """Server-Sent Events stream for phone-call transcript and ticket events."""
+    queue: asyncio.Queue[dict] = asyncio.Queue()
+    _phone_event_listeners.append(queue)
+
+    async def generate():
+        try:
+            while True:
+                try:
+                    event = await asyncio.wait_for(queue.get(), timeout=15.0)
+                    yield f"data: {json.dumps(event)}\n\n"
+                except asyncio.TimeoutError:
+                    yield ": keepalive\n\n"
+        except (asyncio.CancelledError, GeneratorExit):
+            pass
+        finally:
+            try:
+                _phone_event_listeners.remove(queue)
+            except ValueError:
+                pass
+
+    return StreamingResponse(
+        generate(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -251,6 +292,9 @@ async def twilio_stream(websocket: fastapi.WebSocket):
     stop_event = asyncio.Event()
     pending_tool_tasks: set[asyncio.Task] = set()
 
+    async def notify_phone_ticket(ticket: dict) -> None:
+        await broadcast_phone_event({"type": "ticket_created", "ticket": ticket})
+
     async def consumer() -> None:
         try:
             while not stop_event.is_set():
@@ -264,10 +308,29 @@ async def twilio_stream(websocket: fastapi.WebSocket):
                         "streamSid": stream_sid,
                         "media": {"payload": payload},
                     }))
+                elif msg.msg_type == "stt_text":
+                    text = getattr(msg, "text", "") or ""
+                    if text.strip():
+                        await broadcast_phone_event({
+                            "type": "phone_stt",
+                            "stream_id": stream_sid,
+                            "text": text,
+                            "start_s": getattr(msg, "start_s", 0) or 0,
+                        })
+                elif msg.msg_type == "tts_text":
+                    text = sanitize(getattr(msg, "text", "") or "")
+                    if text and text.lower() not in IGNORE_WORDS:
+                        await broadcast_phone_event({
+                            "type": "phone_tts",
+                            "stream_id": stream_sid,
+                            "text": text,
+                            "turn_idx": getattr(msg, "turn_idx", None),
+                            "start_s": getattr(msg, "start_s", 0) or 0,
+                        })
                 elif msg.msg_type == "tool_call":
                     handle = gradbot.ToolHandle(msg.tool_call_handle, msg.tool_call)
                     task = asyncio.create_task(
-                        _create_jira_ticket_tool(handle, state, jira, None)
+                        _create_jira_ticket_tool(handle, state, jira, notify_phone_ticket)
                     )
                     pending_tool_tasks.add(task)
                     task.add_done_callback(pending_tool_tasks.discard)
