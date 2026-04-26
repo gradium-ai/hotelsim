@@ -836,13 +836,16 @@ pub enum AudioFormat {
 
 const INPUT_SAMPLE_RATE: usize = 24000;
 const OUTPUT_SAMPLE_RATE: usize = 48000;
+// μ-law is a telephony codec defined at 8 kHz (G.711); using it at 24/48 kHz
+// would be non-standard and incompatible with Twilio Media Streams etc.
+const ULAW_SAMPLE_RATE: usize = 8000;
 
 impl AudioFormat {
     fn to_encoder_format(self) -> gradbot::encoder::Format {
         match self {
             AudioFormat::OggOpus => gradbot::encoder::Format::OggOpus,
             AudioFormat::Pcm => gradbot::encoder::Format::pcm(OUTPUT_SAMPLE_RATE),
-            AudioFormat::Ulaw => gradbot::encoder::Format::ulaw(OUTPUT_SAMPLE_RATE),
+            AudioFormat::Ulaw => gradbot::encoder::Format::ulaw(ULAW_SAMPLE_RATE),
         }
     }
 
@@ -850,7 +853,7 @@ impl AudioFormat {
         match self {
             AudioFormat::OggOpus => gradbot::decoder::Format::OggOpus,
             AudioFormat::Pcm => gradbot::decoder::Format::pcm(INPUT_SAMPLE_RATE),
-            AudioFormat::Ulaw => gradbot::decoder::Format::ulaw(INPUT_SAMPLE_RATE),
+            AudioFormat::Ulaw => gradbot::decoder::Format::ulaw(ULAW_SAMPLE_RATE),
         }
     }
 }
