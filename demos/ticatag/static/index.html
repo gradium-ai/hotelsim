@@ -233,6 +233,19 @@
   .refresh-btn svg { width: 16px; height: 16px; }
   .refresh-btn.spinning svg { animation: spin 0.8s linear infinite; }
   @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* STT correction animation */
+  .msg-text.stt-correcting s {
+    opacity: 0.4;
+    text-decoration: line-through;
+  }
+  @keyframes stt-correct-in {
+    from { opacity: 0.15; }
+    to   { opacity: 1; }
+  }
+  .msg-text.stt-corrected {
+    animation: stt-correct-in 0.35s ease-out;
+  }
 </style>
 </head>
 <body>
@@ -433,6 +446,28 @@
     userBubble = null;
     hadAssistantBubble = false;
   }
+  function applyTranscriptCorrection(corrected) {
+    if (!userBubble) return;
+    const span = userBubble.querySelector('.msg-text');
+    if (!span) return;
+    const original = span.textContent.trim();
+    if (!original || original === corrected) return;
+
+    // Phase 1 (~200 ms): show original with strikethrough
+    span.textContent = '';
+    const strike = document.createElement('s');
+    strike.textContent = original;
+    span.appendChild(strike);
+    span.classList.add('stt-correcting');
+
+    // Phase 2: swap to corrected text with fade-in
+    setTimeout(() => {
+      span.classList.remove('stt-correcting');
+      span.textContent = corrected;
+      span.classList.add('stt-corrected');
+      setTimeout(() => span.classList.remove('stt-corrected'), 400);
+    }, 200);
+  }
   function ensurePhoneBanner(streamId) {
     if (currentPhoneStreamId === streamId) return;
     currentPhoneStreamId = streamId;
@@ -489,6 +524,8 @@
   function handleCustomEvent(msg) {
     if (msg.type === 'ticket_created' && msg.ticket) {
       refreshTickets(msg.ticket.key);
+    } else if (msg.type === 'stt_correction') {
+      applyTranscriptCorrection(msg.corrected);
     }
   }
 
@@ -577,6 +614,8 @@
       } else if (msg.type === 'phone_tts') {
         ensurePhoneBanner(msg.stream_id);
         appendTranscript(msg.text, msg.turn_idx ?? null, false);
+      } else if (msg.type === 'stt_correction') {
+        applyTranscriptCorrection(msg.corrected);
       } else if (msg.type === 'ticket_created' && msg.ticket) {
         refreshTickets(msg.ticket.key);
       }

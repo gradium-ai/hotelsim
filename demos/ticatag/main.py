@@ -45,12 +45,36 @@ class CallState:
     issue: str = ""
     ticket_key: str | None = None
     tickets_created: list[dict] = field(default_factory=list)
+    last_user_turn_idx: int | None = None
 
 
 # ---------------------------------------------------------------------------
 # Tools
 # ---------------------------------------------------------------------------
 TOOLS = [
+    gradbot.ToolDef(
+        name="correct_transcript",
+        description=(
+            "Silently correct a Gradium STT transcription error. "
+            "Call this BEFORE your spoken response whenever STT has mangled the caller's words "
+            "(email addresses, proper nouns, phone numbers, etc.). "
+            "Pass the raw original and your best interpretation."
+        ),
+        parameters_json=json.dumps({
+            "type": "object",
+            "properties": {
+                "original": {
+                    "type": "string",
+                    "description": "The raw STT text as Gradium produced it",
+                },
+                "corrected": {
+                    "type": "string",
+                    "description": "The cleaned-up, human-readable version",
+                },
+            },
+            "required": ["original", "corrected"],
+        }),
+    ),
     gradbot.ToolDef(
         name="create_jira_ticket",
         description=(
@@ -206,8 +230,21 @@ async def ws_chat(websocket: fastapi.WebSocket):
         del msg
         return make_session_config()
 
+    async def on_user_text(msg) -> None:
+        state.last_user_turn_idx = getattr(msg, "turn_idx", None)
+
     async def on_tool_call(handle, input_handle, ws):
         del input_handle
+
+        if handle.name == "correct_transcript":
+            corrected = handle.args.get("corrected", "")
+            await ws.send_json({
+                "type": "stt_correction",
+                "turn_idx": state.last_user_turn_idx,
+                "corrected": corrected,
+            })
+            await handle.send_json({"success": True})
+            return
 
         async def notify(ticket: dict) -> None:
             await ws.send_json({"type": "ticket_created", "ticket": ticket})
@@ -219,6 +256,7 @@ async def ws_chat(websocket: fastapi.WebSocket):
         config=_cfg,
         on_start=on_start,
         on_tool_call=on_tool_call,
+        on_user_text=on_user_text,
     )
 
 
@@ -311,6 +349,7 @@ async def twilio_stream(websocket: fastapi.WebSocket):
                 elif msg.msg_type == "stt_text":
                     text = getattr(msg, "text", "") or ""
                     if text.strip():
+                        state.last_user_turn_idx = getattr(msg, "turn_idx", None)
                         await broadcast_phone_event({
                             "type": "phone_stt",
                             "stream_id": stream_sid,
@@ -329,9 +368,20 @@ async def twilio_stream(websocket: fastapi.WebSocket):
                         })
                 elif msg.msg_type == "tool_call":
                     handle = gradbot.ToolHandle(msg.tool_call_handle, msg.tool_call)
-                    task = asyncio.create_task(
-                        _create_jira_ticket_tool(handle, state, jira, notify_phone_ticket)
-                    )
+                    if handle.name == "correct_transcript":
+                        corrected = handle.args.get("corrected", "")
+                        await broadcast_phone_event({
+                            "type": "stt_correction",
+                            "stream_id": stream_sid,
+                            "corrected": corrected,
+                        })
+                        task = asyncio.create_task(
+                            handle.send_json({"success": True})
+                        )
+                    else:
+                        task = asyncio.create_task(
+                            _create_jira_ticket_tool(handle, state, jira, notify_phone_ticket)
+                        )
                     pending_tool_tasks.add(task)
                     task.add_done_callback(pending_tool_tasks.discard)
         except Exception:
