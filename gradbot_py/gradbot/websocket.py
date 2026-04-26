@@ -66,6 +66,7 @@ async def handle_session(
     on_start: ConfigCallback,
     on_config: ConfigCallback | None = None,
     on_tool_call: Callable[..., Awaitable[None]] | None = None,
+    on_user_text: Callable[..., Awaitable[None]] | None = None,
     config: config_lib.Config | None = None,
     run_kwargs: dict | None = None,
     input_format: gradbot.AudioFormat = gradbot.AudioFormat.OggOpus,
@@ -94,6 +95,8 @@ async def handle_session(
     on_start = _ensure_async(on_start)
     if on_config is not None:
         on_config = _ensure_async(on_config)
+    if on_user_text is not None:
+        on_user_text = _ensure_async(on_user_text)
 
     pending_tool_tasks: set[asyncio.Task] = set()
 
@@ -145,6 +148,12 @@ async def handle_session(
                 pending_tool_tasks.add(task)
                 task.add_done_callback(pending_tool_tasks.discard)
             return
+
+        if msg.msg_type == "stt_text" and on_user_text is not None:
+            try:
+                await on_user_text(msg)
+            except Exception:
+                logger.exception("on_user_text callback failed")
 
         schema = schemas.from_msg(msg)
         if schema is None:
