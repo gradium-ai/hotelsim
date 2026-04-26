@@ -7,12 +7,15 @@ Run locally with:
 
 from __future__ import annotations
 
+import asyncio
+import base64
 import json
 import logging
 import os
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Awaitable, Callable
 
 import fastapi
 from fastapi.responses import HTMLResponse, PlainTextResponse
@@ -109,6 +112,50 @@ def make_session_config() -> gradbot.SessionConfig:
     )
 
 
+async def _create_jira_ticket_tool(
+    handle: gradbot.ToolHandle,
+    state: CallState,
+    jira: JiraClient,
+    on_created: Callable[[dict], Awaitable[None]] | None = None,
+) -> None:
+    """Shared tool-call handler used by both the browser and Twilio sessions."""
+    try:
+        if handle.name != "create_jira_ticket":
+            await handle.send_error(f"Unknown tool: {handle.name}")
+            return
+
+        args = handle.args
+        state.caller_name = args.get("caller_name", "") or state.caller_name
+        state.caller_email = args.get("caller_email", "") or state.caller_email
+        state.caller_phone = args.get("caller_phone", "") or state.caller_phone
+        state.issue = args.get("issue_description", "") or state.issue
+
+        ticket = await jira.create_ticket(
+            caller_name=state.caller_name,
+            caller_email=state.caller_email,
+            caller_phone=state.caller_phone,
+            issue_summary=args.get("issue_summary", ""),
+            issue_description=state.issue,
+        )
+        state.ticket_key = ticket["key"]
+        state.tickets_created.append(ticket)
+
+        if on_created is not None:
+            await on_created(ticket)
+
+        await handle.send_json({
+            "success": True,
+            "ticket_key": ticket["key"],
+            "message": (
+                f"Ticket {ticket['key']} créé avec succès. "
+                "Annoncez ce numéro de ticket au client puis terminez l'appel poliment."
+            ),
+        })
+    except Exception as exc:
+        logger.exception("create_jira_ticket failed")
+        await handle.send_error(f"Jira error: {exc}")
+
+
 @app.websocket("/ws/chat")
 async def ws_chat(websocket: fastapi.WebSocket):
     state = CallState()
@@ -120,39 +167,11 @@ async def ws_chat(websocket: fastapi.WebSocket):
 
     async def on_tool_call(handle, input_handle, ws):
         del input_handle
-        try:
-            if handle.name != "create_jira_ticket":
-                await handle.send_error(f"Unknown tool: {handle.name}")
-                return
 
-            args = handle.args
-            state.caller_name = args.get("caller_name", "") or state.caller_name
-            state.caller_email = args.get("caller_email", "") or state.caller_email
-            state.caller_phone = args.get("caller_phone", "") or state.caller_phone
-            state.issue = args.get("issue_description", "") or state.issue
-
-            ticket = await jira.create_ticket(
-                caller_name=state.caller_name,
-                caller_email=state.caller_email,
-                caller_phone=state.caller_phone,
-                issue_summary=args.get("issue_summary", ""),
-                issue_description=state.issue,
-            )
-            state.ticket_key = ticket["key"]
-            state.tickets_created.append(ticket)
-
+        async def notify(ticket: dict) -> None:
             await ws.send_json({"type": "ticket_created", "ticket": ticket})
-            await handle.send_json({
-                "success": True,
-                "ticket_key": ticket["key"],
-                "message": (
-                    f"Ticket {ticket['key']} créé avec succès. "
-                    "Annoncez ce numéro de ticket au client puis terminez l'appel poliment."
-                ),
-            })
-        except Exception as exc:
-            logger.exception("create_jira_ticket failed")
-            await handle.send_error(f"Jira error: {exc}")
+
+        await _create_jira_ticket_tool(handle, state, jira, notify)
 
     await gradbot.websocket.handle_session(
         websocket,
@@ -171,38 +190,126 @@ async def list_tickets():
 
 
 # ---------------------------------------------------------------------------
-# Twilio scaffold (NOT wired — placeholder for later phone integration)
+# Twilio voice — TwiML + Media Streams bridge
 # ---------------------------------------------------------------------------
 @app.post("/twilio/voice", response_class=PlainTextResponse)
 async def twilio_voice(request: fastapi.Request):
-    """TwiML stub. Wire up once a Twilio number is provisioned.
+    """Return TwiML that connects the call to /twilio/stream.
 
-    IMPORTANT: Twilio dials the literal URL you write in the TwiML, so the
-    <Stream url=...> must include any reverse-proxy path prefix (e.g.
-    "/ticatag") that Caddy strips on the way in. Set PUBLIC_WS_URL to the
-    full external WebSocket URL — e.g.
-        PUBLIC_WS_URL=wss://gradgtm.com/ticatag/twilio/stream
-
-    Steps to wire later:
-      1. Set Twilio Voice webhook to POST https://<external>/twilio/voice
-         (the external URL — including any path prefix).
-      2. Replace this <Say> stub with <Connect><Stream url="{PUBLIC_WS_URL}"/></Connect>.
-      3. Add a /twilio/stream WebSocket that bridges Twilio Media Streams
-         (μ-law 8kHz, base64 in JSON frames) to gradbot.websocket.handle_session.
-      4. Validate the X-Twilio-Signature header on /twilio/voice against
-         TWILIO_AUTH_TOKEN so the endpoint can't be spoofed.
+    Twilio dials the literal URL written in the <Stream> element, so any
+    reverse-proxy path prefix (or subdomain) must be included. Set
+    PUBLIC_WS_URL to the full external WebSocket URL, e.g.
+        PUBLIC_WS_URL=wss://ticatag.gradgtm.com/twilio/stream
     """
     fallback_host = request.headers.get("x-forwarded-host") or request.url.hostname
     public_ws = os.environ.get("PUBLIC_WS_URL", f"wss://{fallback_host}/twilio/stream")
     twiml = (
         f'<?xml version="1.0" encoding="UTF-8"?>\n'
         f'<Response>\n'
-        f'  <!-- TODO: replace with <Connect><Stream url="{public_ws}"/></Connect> -->\n'
-        f'  <Say language="fr-FR">Bonjour, le support technique Ticatag est en cours de configuration. '
-        f'Veuillez réessayer plus tard.</Say>\n'
+        f'  <Connect>\n'
+        f'    <Stream url="{public_ws}"/>\n'
+        f'  </Connect>\n'
         f'</Response>\n'
     )
     return PlainTextResponse(twiml, media_type="application/xml")
+
+
+@app.websocket("/twilio/stream")
+async def twilio_stream(websocket: fastapi.WebSocket):
+    """Bridge Twilio Media Streams (μ-law 8 kHz, base64 in JSON) to gradbot."""
+    await websocket.accept()
+    state = CallState()
+    jira: JiraClient = app.state.jira
+
+    stream_sid: str | None = None
+    try:
+        while stream_sid is None:
+            raw = await websocket.receive_text()
+            evt = json.loads(raw)
+            kind = evt.get("event")
+            if kind == "start":
+                stream_sid = evt["streamSid"]
+                logger.info("twilio stream started: %s", stream_sid)
+            elif kind == "connected":
+                logger.info("twilio connected")
+            else:
+                logger.debug("twilio pre-start event: %s", kind)
+    except (fastapi.WebSocketDisconnect, json.JSONDecodeError):
+        try:
+            await websocket.close()
+        except Exception:
+            pass
+        return
+
+    input_handle, output_handle = await gradbot.run(
+        **_cfg.client_kwargs,
+        session_config=make_session_config(),
+        input_format=gradbot.AudioFormat.Ulaw,
+        output_format=gradbot.AudioFormat.Ulaw,
+    )
+
+    stop_event = asyncio.Event()
+    pending_tool_tasks: set[asyncio.Task] = set()
+
+    async def consumer() -> None:
+        try:
+            while not stop_event.is_set():
+                msg = await output_handle.receive()
+                if msg is None:
+                    return
+                if msg.msg_type == "audio":
+                    payload = base64.b64encode(msg.data).decode("ascii")
+                    await websocket.send_text(json.dumps({
+                        "event": "media",
+                        "streamSid": stream_sid,
+                        "media": {"payload": payload},
+                    }))
+                elif msg.msg_type == "tool_call":
+                    handle = gradbot.ToolHandle(msg.tool_call_handle, msg.tool_call)
+                    task = asyncio.create_task(
+                        _create_jira_ticket_tool(handle, state, jira, None)
+                    )
+                    pending_tool_tasks.add(task)
+                    task.add_done_callback(pending_tool_tasks.discard)
+        except Exception:
+            logger.exception("twilio consumer error")
+        finally:
+            stop_event.set()
+
+    async def producer() -> None:
+        try:
+            while not stop_event.is_set():
+                raw = await websocket.receive_text()
+                evt = json.loads(raw)
+                kind = evt.get("event")
+                if kind == "media":
+                    audio = base64.b64decode(evt["media"]["payload"])
+                    await input_handle.send_audio(audio)
+                elif kind == "stop":
+                    logger.info("twilio stop received")
+                    return
+        except fastapi.WebSocketDisconnect:
+            logger.info("twilio websocket disconnected")
+        except Exception:
+            logger.exception("twilio producer error")
+        finally:
+            stop_event.set()
+            try:
+                await input_handle.close()
+            except Exception:
+                pass
+
+    try:
+        await asyncio.gather(consumer(), producer(), return_exceptions=True)
+    finally:
+        for t in pending_tool_tasks:
+            t.cancel()
+        if pending_tool_tasks:
+            await asyncio.gather(*pending_tool_tasks, return_exceptions=True)
+        try:
+            await websocket.close()
+        except Exception:
+            pass
 
 
 # ---------------------------------------------------------------------------
