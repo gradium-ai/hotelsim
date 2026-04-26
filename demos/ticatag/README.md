@@ -35,10 +35,13 @@ Open <http://localhost:8000>.
 
 `/twilio/voice` returns a TwiML stub. To enable real phone calls:
 
-1. Provision a French Twilio number.
+1. Provisioned number: `+1 (254) 232-6149` (US1, Laguna Park, TX) — SID `PNaa9eb1cbef8c1f695f038d15ae83f0ff`.
 2. Set its Voice webhook to `POST https://<public-host>/twilio/voice`.
 3. Replace the stub `<Say>` with `<Connect><Stream url="wss://<host>/twilio/stream"/></Connect>`.
 4. Add a `/twilio/stream` WebSocket that bridges Twilio Media Streams (μ-law 8 kHz) into `gradbot.websocket.handle_session`.
+
+Credentials live in Infisical (project `c5cd7459-…`, env `dev`):
+`TWILIO_API_KEY_SID`, `TWILIO_API_KEY_SECRET`, `TWILIO_PHONE_NUMBER`, `TWILIO_PHONE_NUMBER_SID`.
 
 ## Deploying to the VPS
 
