@@ -772,6 +772,8 @@ impl LlmSession {
                         // Handle text content
                         if let Some(c) = choice.delta.content
                             && !c.is_empty()
+                            && !c.starts_with("<|channel")
+                            && !c.starts_with("<channel")
                         {
                             tx.send(LlmResponseItem::Text(c)).await?;
                         }
@@ -888,4 +890,30 @@ struct StreamToolCall {
 struct StreamFunction {
     name: Option<String>,
     arguments: Option<String>,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::strip_control_tokens;
+
+    #[test]
+    fn strip_control_tokens_covers_known_patterns() {
+        // Plain text round-trips (modulo trim).
+        assert_eq!(strip_control_tokens("hello world"), "hello world");
+        assert_eq!(strip_control_tokens(""), "");
+        assert_eq!(strip_control_tokens("  hi \n"), "hi");
+
+        // `<|...|>` and `<|...>` are stripped by the first pass.
+        assert_eq!(strip_control_tokens("<|start|>hello"), "hello");
+        assert_eq!(strip_control_tokens("<|channel>hello"), "hello");
+        assert_eq!(strip_control_tokens("<|a|>foo<|b|>bar<|c|>"), "foobar");
+
+        // `<word|>` (alphanumeric/underscore) is stripped by the second pass.
+        assert_eq!(strip_control_tokens("hello<channel|>world"), "helloworld");
+        assert_eq!(strip_control_tokens("pre<end_of_turn|>post"), "prepost");
+
+        // Angle brackets that don't match either pattern are preserved.
+        assert_eq!(strip_control_tokens("a < b > c"), "a < b > c");
+        assert_eq!(strip_control_tokens("hello<a-b|>world"), "hello<a-b|>world");
+    }
 }
