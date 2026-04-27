@@ -718,6 +718,7 @@ impl LlmSession {
             let mut line_buf = String::new();
 
             let mut sse_chunk_count: u64 = 0;
+            let mut last_was_channel = false;
             tracing::info!("LLM SSE: entering byte_stream loop");
             while let Some(chunk_result) = byte_stream.next().await {
                 if tx.is_closed() {
@@ -772,10 +773,15 @@ impl LlmSession {
                         // Handle text content
                         if let Some(c) = choice.delta.content
                             && !c.is_empty()
-                            && !c.starts_with("<|channel")
-                            && !c.starts_with("<channel")
                         {
-                            tx.send(LlmResponseItem::Text(c)).await?;
+                            let is_channel = c == "<|channel>";
+                            let filter = c.starts_with("<|channel")
+                                || c.starts_with("<channel")
+                                || (last_was_channel && c == "thought");
+                            if !filter {
+                                tx.send(LlmResponseItem::Text(c)).await?;
+                            }
+                            last_was_channel = is_channel;
                         }
 
                         // Handle tool calls (streamed as chunks)
