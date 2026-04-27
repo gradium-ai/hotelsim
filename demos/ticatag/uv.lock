@@ -290,7 +290,7 @@ wheels = [
 
 [[package]]
 name = "gradbot"
-version = "0.1.6"
+version = "0.1.8"
 source = { editable = "../../gradbot_py" }
 dependencies = [
     { name = "fastapi" },
