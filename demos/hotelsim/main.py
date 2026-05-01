@@ -22,7 +22,6 @@ import fastapi
 from fastapi.responses import PlainTextResponse, StreamingResponse
 
 import gradbot
-from gradbot import voices as gradbot_voices
 from gradbot.schemas import IGNORE_WORDS, sanitize
 
 from hotel import (
@@ -44,41 +43,14 @@ PROMPT = (Path(__file__).parent / "prompts" / "main.txt").read_text()
 
 
 # ---------------------------------------------------------------------------
-# Voice catalog lookup (Constance / Arthur, by display name)
+# Voice IDs — pinned to the operator-selected voices for hotelsim.
 # ---------------------------------------------------------------------------
 LANG_FROM_CODE = {"fr": gradbot.Lang.Fr, "en": gradbot.Lang.En}
-DEFAULT_VOICE_NAMES = {"fr": "Constance", "en": "Arthur"}
-# Filled in at startup by _resolve_voices() — keys "fr", "en".
-VOICE_IDS: dict[str, str] = {}
-# Hard fallback: ticatag's known-good Elise (French). Better than crashing.
-_FALLBACK_VOICE_ID = "b35yykvVppLXyw_l"
-
-
-async def _resolve_voices() -> None:
-    """Resolve Constance + Arthur voice IDs from the Gradium catalog."""
-    base_url = _cfg.gradium.base_url
-    api_key = (
-        _cfg.gradium.api_key.get_secret_value() if _cfg.gradium.api_key else None
-    )
-    if not api_key:
-        logger.warning("GRADIUM_API_KEY not set; falling back to default voice")
-        VOICE_IDS["fr"] = _FALLBACK_VOICE_ID
-        VOICE_IDS["en"] = _FALLBACK_VOICE_ID
-        return
-    catalog = await gradbot_voices.load_catalog(base_url, api_key)
-    by_name: dict[str, str] = {}
-    for v in catalog:
-        by_name[v.name.lower()] = v.voice_id
-    for code, target in DEFAULT_VOICE_NAMES.items():
-        vid = by_name.get(target.lower())
-        if vid:
-            VOICE_IDS[code] = vid
-            logger.info("voice resolved: %s (%s) -> %s", target, code, vid)
-        else:
-            logger.warning(
-                "voice '%s' not found in Gradium catalog; using fallback", target
-            )
-            VOICE_IDS[code] = _FALLBACK_VOICE_ID
+VOICE_IDS: dict[str, str] = {
+    "fr": "3YlG68yLpoTW8HEj",
+    "en": "Zd5POlBGSbD-JBXF",
+}
+_FALLBACK_VOICE_ID = VOICE_IDS["fr"]
 
 
 # ---------------------------------------------------------------------------
@@ -178,7 +150,6 @@ TOOLS = [
 # ---------------------------------------------------------------------------
 @asynccontextmanager
 async def lifespan(app: fastapi.FastAPI):
-    await _resolve_voices()
     logger.info("Hotelsim ready — voices: %s", VOICE_IDS)
     yield
 
