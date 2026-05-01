@@ -1,0 +1,723 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Four Seasons Rive Gauche — Concierge</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --navy:        #15243A;
+    --navy-dark:   #0B1424;
+    --navy-soft:   #1F314D;
+    --gold:        #B69661;
+    --gold-soft:   #E2D4B5;
+    --gold-pale:   #F6F0E2;
+    --cream:       #FBF8F1;
+    --cream-2:     #F2EDE2;
+    --paper:       #FFFFFF;
+    --ink:         #1A1A1A;
+    --ink-soft:    #4A4A4A;
+    --ink-mute:    #8A8275;
+    --line:        #E6DFCE;
+    --green:       #4F7A5C;
+    --red:         #A04545;
+    --shadow-sm:   0 1px 2px rgba(21,36,58,0.06);
+    --shadow-md:   0 4px 16px rgba(21,36,58,0.08);
+    --shadow-lg:   0 12px 32px rgba(21,36,58,0.12);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; height: 100%; }
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: var(--cream);
+    color: var(--ink);
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  .app { display: grid; grid-template-rows: 72px auto 1fr; height: 100vh; }
+
+  /* --------- Support phone banner --------- */
+  .support-banner {
+    display: flex; align-items: center; justify-content: center; gap: 14px;
+    padding: 12px 24px;
+    background: linear-gradient(180deg, var(--navy) 0%, var(--navy-dark) 100%);
+    border-bottom: 1px solid var(--gold);
+    color: var(--gold-pale);
+    font-size: 14px;
+    font-weight: 500;
+    letter-spacing: 0.01em;
+  }
+  .support-banner .icon {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    background: var(--gold);
+    color: var(--navy-dark);
+    font-size: 14px;
+  }
+  .support-banner .number {
+    font-family: 'Inter Tight', ui-monospace, monospace;
+    font-weight: 600;
+    font-size: 15px;
+    color: var(--gold-pale);
+    text-decoration: none;
+    padding: 2px 12px;
+    border-radius: 6px;
+    background: rgba(182,150,97,0.18);
+    border: 1px solid rgba(182,150,97,0.55);
+    transition: background 0.15s, color 0.15s;
+    white-space: nowrap;
+  }
+  .support-banner .number:hover { background: var(--gold); color: var(--navy-dark); }
+  @media (max-width: 640px) {
+    .support-banner { flex-direction: column; gap: 8px; padding: 10px 16px; text-align: center; }
+  }
+
+  header.topbar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 28px;
+    background: var(--paper);
+    border-bottom: 1px solid var(--line);
+    box-shadow: var(--shadow-sm);
+  }
+  .brand { display: flex; align-items: center; gap: 14px; }
+  .brand .crest {
+    width: 36px; height: 36px; border-radius: 50%;
+    background: linear-gradient(180deg, var(--navy) 0%, var(--navy-dark) 100%);
+    color: var(--gold);
+    font-family: 'Cormorant Garamond', serif;
+    font-weight: 700;
+    font-size: 18px;
+    display: flex; align-items: center; justify-content: center;
+    border: 2px solid var(--gold);
+    letter-spacing: -1px;
+  }
+  .brand .name {
+    font-family: 'Cormorant Garamond', serif;
+    font-weight: 600;
+    font-size: 22px;
+    letter-spacing: 0.01em;
+    color: var(--navy);
+  }
+  .brand .label {
+    font-weight: 500; color: var(--ink-mute);
+    font-size: 11px; text-transform: uppercase; letter-spacing: 0.14em;
+    border-left: 1px solid var(--line); padding-left: 14px;
+  }
+  .topbar-right { display: flex; align-items: center; gap: 16px; }
+  .lang-pill {
+    display: flex; align-items: center; gap: 6px;
+    padding: 4px 10px; border-radius: 999px;
+    font-size: 12px; font-weight: 600;
+    background: var(--gold-pale);
+    color: var(--navy);
+    border: 1px solid var(--gold-soft);
+  }
+  .status {
+    font-size: 12px; color: var(--ink-mute);
+    display: flex; align-items: center; gap: 6px;
+  }
+  .status .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--ink-mute); }
+  .status.connecting .dot { background: var(--gold); }
+  .status.connected .dot { background: var(--green); }
+  .status.error .dot { background: var(--red); }
+
+  main {
+    display: grid;
+    grid-template-columns: 1fr 380px;
+    gap: 16px;
+    padding: 16px;
+    overflow: hidden;
+  }
+
+  .panel {
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    box-shadow: var(--shadow-sm);
+    display: flex; flex-direction: column;
+    overflow: hidden;
+  }
+  .panel-header {
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--line);
+    font-family: 'Cormorant Garamond', serif;
+    font-weight: 600;
+    font-size: 17px;
+    color: var(--navy);
+    display: flex; align-items: center; justify-content: space-between;
+    background: var(--cream);
+  }
+  .panel-body { flex: 1; overflow: auto; padding: 16px 18px; }
+
+  /* --------- Left: call --------- */
+  .call-controls {
+    display: flex; align-items: center; gap: 16px;
+    padding: 16px 18px;
+    border-bottom: 1px solid var(--line);
+  }
+  .mic-btn {
+    width: 60px; height: 60px; border-radius: 50%;
+    background: var(--navy); color: var(--gold);
+    border: 2px solid var(--gold);
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: var(--shadow-md);
+    transition: background 0.15s, transform 0.1s, color 0.15s;
+  }
+  .mic-btn:hover { background: var(--navy-dark); }
+  .mic-btn:active { transform: scale(0.96); }
+  .mic-btn.active { background: var(--red); color: var(--cream); border-color: var(--red); }
+  .mic-btn svg { width: 26px; height: 26px; }
+  .call-meta { display: flex; flex-direction: column; gap: 2px; }
+  .call-meta .title {
+    font-family: 'Cormorant Garamond', serif;
+    font-weight: 600;
+    font-size: 18px;
+    color: var(--navy);
+  }
+  .call-meta .subtitle { font-size: 12px; color: var(--ink-mute); }
+  .call-options {
+    margin-left: auto;
+    display: flex; align-items: center; gap: 14px;
+    font-size: 12px; color: var(--ink-soft);
+  }
+  .call-options label { display: flex; align-items: center; gap: 6px; cursor: pointer; }
+
+  .transcript { display: flex; flex-direction: column; gap: 10px; }
+  .msg {
+    max-width: 72%;
+    padding: 10px 14px;
+    border-radius: 14px;
+    font-size: 14px;
+    line-height: 1.45;
+    word-wrap: break-word;
+  }
+  .msg-user {
+    align-self: flex-end;
+    background: var(--navy);
+    color: var(--cream);
+    border-bottom-right-radius: 4px;
+  }
+  .msg-agent {
+    align-self: flex-start;
+    background: var(--gold-pale);
+    color: var(--navy-dark);
+    border-bottom-left-radius: 4px;
+    border: 1px solid var(--gold-soft);
+  }
+  .empty-state {
+    color: var(--ink-mute);
+    font-style: italic;
+    font-size: 13px;
+    text-align: center;
+    padding: 32px 16px;
+  }
+  .phone-call-banner {
+    position: sticky;
+    top: -2px;
+    z-index: 2;
+    align-self: center;
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 7px 14px;
+    border-radius: 999px;
+    background: var(--navy);
+    border: 1px solid var(--gold);
+    color: var(--gold-pale);
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    margin: 4px auto 8px;
+    box-shadow: var(--shadow-sm);
+  }
+  .phone-call-banner .phone-emoji {
+    font-size: 14px; line-height: 1;
+    animation: phone-wiggle 2.4s ease-in-out infinite;
+    transform-origin: 50% 60%;
+  }
+  .phone-call-banner .live-dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--green);
+    box-shadow: 0 0 0 0 rgba(79,122,92,0.6);
+    animation: live-pulse 1.6s ease-out infinite;
+  }
+  @keyframes phone-wiggle {
+    0%, 88%, 100% { transform: rotate(0deg); }
+    92% { transform: rotate(-12deg); }
+    96% { transform: rotate(12deg); }
+  }
+  @keyframes live-pulse {
+    0%   { box-shadow: 0 0 0 0   rgba(79,122,92,0.6); }
+    70%  { box-shadow: 0 0 0 8px rgba(79,122,92,0);   }
+    100% { box-shadow: 0 0 0 0   rgba(79,122,92,0);   }
+  }
+
+  /* --------- Right: rooms + reservations --------- */
+  .room {
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 10px 12px;
+    margin-bottom: 8px;
+    background: var(--paper);
+  }
+  .room-name {
+    font-family: 'Cormorant Garamond', serif;
+    font-weight: 600;
+    font-size: 15px;
+    color: var(--navy);
+  }
+  .room-detail { font-size: 12px; color: var(--ink-mute); margin-top: 2px; }
+  .room-rate {
+    font-family: 'Inter Tight', ui-monospace, monospace;
+    font-size: 13px; color: var(--gold);
+    font-weight: 600; margin-top: 4px;
+  }
+
+  .reservation {
+    border: 1px solid var(--gold);
+    border-radius: 8px;
+    padding: 12px 14px;
+    margin-bottom: 10px;
+    background: var(--gold-pale);
+  }
+  .reservation.new { animation: flash 1.6s ease-out; }
+  @keyframes flash {
+    0%   { background: var(--gold); border-color: var(--gold); }
+    100% { background: var(--gold-pale); border-color: var(--gold); }
+  }
+  .reservation-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+  .reservation-code {
+    font-family: 'Inter Tight', ui-monospace, monospace;
+    font-weight: 700;
+    color: var(--navy);
+    font-size: 13px;
+  }
+  .reservation-room {
+    font-family: 'Cormorant Garamond', serif;
+    font-weight: 600;
+    font-size: 14px;
+    color: var(--navy);
+  }
+  .reservation-detail { font-size: 12px; color: var(--ink-soft); }
+  .reservation-total {
+    font-family: 'Inter Tight', ui-monospace, monospace;
+    font-size: 13px; font-weight: 600; color: var(--gold);
+    margin-top: 4px;
+  }
+
+  .panel-section {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 13px;
+    color: var(--ink-mute);
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    margin: 14px 0 8px 0;
+    padding-bottom: 4px;
+    border-bottom: 1px solid var(--line);
+  }
+  .panel-section:first-child { margin-top: 0; }
+
+  /* STT correction animation */
+  .msg-text.stt-correcting s {
+    opacity: 0.4;
+    text-decoration: line-through;
+  }
+  @keyframes stt-correct-in {
+    from { opacity: 0.15; }
+    to   { opacity: 1; }
+  }
+  .msg-text.stt-corrected {
+    animation: stt-correct-in 0.35s ease-out;
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <header class="topbar">
+    <div class="brand">
+      <span class="crest">F·S</span>
+      <span class="name">Four Seasons Rive Gauche</span>
+      <span class="label">Concierge · Voice Agent</span>
+    </div>
+    <div class="topbar-right">
+      <span class="lang-pill" id="langPill">FR / EN</span>
+      <div class="status" id="status">
+        <span class="dot"></span><span class="text">Idle</span>
+      </div>
+    </div>
+  </header>
+
+  <div class="support-banner" role="region" aria-label="Reservations line">
+    <span class="icon" aria-hidden="true">☎</span>
+    <span class="copy">
+      Pour réserver / To make a reservation —
+      <a class="number" href="tel:+15736793638">+1&nbsp;(573)&nbsp;679‑3638</a>
+    </span>
+  </div>
+
+  <main>
+    <section class="panel">
+      <div class="call-controls">
+        <button class="mic-btn" id="micBtn" aria-label="Start the call">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11h-2z"/></svg>
+        </button>
+        <div class="call-meta">
+          <div class="title" id="callTitle">Start the call</div>
+          <div class="subtitle" id="callSubtitle">Click the mic to speak with the concierge — French or English.</div>
+        </div>
+        <div class="call-options">
+          <label><input type="checkbox" id="echoCancellation" checked> Echo cancel</label>
+        </div>
+      </div>
+      <div class="panel-body">
+        <div class="transcript" id="transcript">
+          <div class="empty-state">Le transcript apparaîtra ici. — Transcript will appear here once the call begins.</div>
+        </div>
+      </div>
+    </section>
+
+    <aside class="panel">
+      <div class="panel-header">
+        <span>Suite & Tarifs</span>
+      </div>
+      <div class="panel-body">
+        <div class="panel-section">Reservations this session</div>
+        <div id="reservationsList">
+          <div class="empty-state">No reservations yet.</div>
+        </div>
+
+        <div class="panel-section">Room categories</div>
+        <div id="roomsList">
+          <div class="empty-state">Loading…</div>
+        </div>
+      </div>
+    </aside>
+  </main>
+</div>
+
+<!-- Powered by Gradium Badge -->
+<style>
+#gradium-badge, #gradium-badge * { font-family: 'Inter Tight', sans-serif !important; }
+#gradium-badge { position: fixed; bottom: 24px; right: 24px; z-index: 999; transition: opacity 0.3s, transform 0.3s; }
+#gradium-badge.hidden { opacity: 0; pointer-events: none; transform: translateY(8px); }
+#gradium-badge-inner {
+  display: flex; align-items: center;
+  background: #1a1a1a; color: #FCFBF8;
+  border-radius: 8px; border: 1px solid rgba(255,255,255,0.06);
+  box-shadow: 0 0 10px 1px rgba(174,210,255,0.08), 0 2px 8px rgba(0,0,0,0.3);
+  overflow: hidden;
+}
+#gradium-badge-cta {
+  display: flex; align-items: center; gap: 5px;
+  padding: 7px 12px; text-decoration: none; color: #FFFFFF;
+  font-size: 12px; font-weight: 400; white-space: nowrap;
+}
+#gradium-badge-cta:hover { background: #2a2a2a; }
+#gradium-badge-divider { width: 1px; height: 16px; background: rgba(255,255,255,0.1); flex-shrink: 0; }
+#gradium-badge-close {
+  display: flex; align-items: center; justify-content: center;
+  border: none; background: none; cursor: pointer; color: #FFFFFF;
+  padding: 7px 10px;
+}
+#gradium-badge-close:hover { color: #FCFBF8; background: #2a2a2a; }
+</style>
+<aside id="gradium-badge" role="complementary" aria-label="Powered by Gradium">
+  <div id="gradium-badge-inner">
+    <a id="gradium-badge-cta" href="https://gradium.ai/" target="_blank" rel="noopener noreferrer">
+      <span>Powered by Gradium</span>
+    </a>
+    <span id="gradium-badge-divider" aria-hidden="true"></span>
+    <button id="gradium-badge-close" aria-label="Dismiss" type="button">
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 16 16" aria-hidden="true">
+        <path fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" d="M4.5 4.5l7 7M11.5 4.5l-7 7"/>
+      </svg>
+    </button>
+  </div>
+</aside>
+
+<script src="/static/js/opus-encoder.js"></script>
+<script src="/static/js/audio-processor.js"></script>
+<script src="/static/js/synced-audio-player.js"></script>
+<script>
+(function() {
+  const badge = document.getElementById('gradium-badge');
+  const badgeClose = document.getElementById('gradium-badge-close');
+  if (badgeClose && badge) badgeClose.addEventListener('click', () => badge.classList.add('hidden'));
+
+  const micBtn = document.getElementById('micBtn');
+  const echoCb = document.getElementById('echoCancellation');
+  const transcript = document.getElementById('transcript');
+  const statusEl = document.getElementById('status');
+  const callTitle = document.getElementById('callTitle');
+  const callSubtitle = document.getElementById('callSubtitle');
+  const langPill = document.getElementById('langPill');
+  const reservationsList = document.getElementById('reservationsList');
+  const roomsList = document.getElementById('roomsList');
+
+  let ws = null;
+  let player = null;
+  let isRecording = false;
+  let turnBubbles = {};
+  let userBubble = null;
+  let hadAssistantBubble = false;
+  let currentPhoneStreamId = null;
+  let sessionReservations = [];
+
+  function setStatus(state, text) {
+    statusEl.className = 'status ' + state;
+    statusEl.querySelector('.text').textContent = text;
+  }
+  function setCallMeta(title, subtitle) {
+    callTitle.textContent = title;
+    callSubtitle.textContent = subtitle;
+  }
+  function setLanguagePill(lang) {
+    if (lang === 'fr') {
+      langPill.textContent = '🇫🇷 Français · Constance';
+    } else if (lang === 'en') {
+      langPill.textContent = '🇬🇧 English · Arthur';
+    } else {
+      langPill.textContent = 'FR / EN';
+    }
+  }
+
+  function clearEmptyState() {
+    const empty = transcript.querySelector('.empty-state');
+    if (empty) empty.remove();
+  }
+  function getBubbleForTurn(turnIdx, isUser) {
+    clearEmptyState();
+    if (isUser) {
+      if (userBubble && !hadAssistantBubble) return userBubble;
+      hadAssistantBubble = false;
+      userBubble = document.createElement('div');
+      userBubble.className = 'msg msg-user';
+      const tx = document.createElement('span');
+      tx.className = 'msg-text';
+      userBubble.appendChild(tx);
+      transcript.appendChild(userBubble);
+      return userBubble;
+    }
+    let bubble = turnBubbles[turnIdx];
+    if (!bubble) {
+      hadAssistantBubble = true;
+      bubble = document.createElement('div');
+      bubble.className = 'msg msg-agent';
+      const tx = document.createElement('span');
+      tx.className = 'msg-text';
+      bubble.appendChild(tx);
+      transcript.appendChild(bubble);
+      turnBubbles[turnIdx] = bubble;
+    }
+    return bubble;
+  }
+  function appendTranscript(text, turnIdx, isUser) {
+    const bubble = getBubbleForTurn(turnIdx, isUser);
+    bubble.querySelector('.msg-text').textContent += text + ' ';
+    while (transcript.children.length > 60) {
+      const removed = transcript.removeChild(transcript.firstChild);
+      for (const k in turnBubbles) { if (turnBubbles[k] === removed) delete turnBubbles[k]; }
+      if (userBubble === removed) userBubble = null;
+    }
+    const scroller = transcript.parentElement;
+    if (scroller) scroller.scrollTop = scroller.scrollHeight;
+  }
+  function resetTranscript() {
+    transcript.innerHTML = '<div class="empty-state">Transcript will appear here once the call begins.</div>';
+    turnBubbles = {};
+    userBubble = null;
+    hadAssistantBubble = false;
+  }
+  function applyTranscriptCorrection(corrected) {
+    if (!userBubble) return;
+    const span = userBubble.querySelector('.msg-text');
+    if (!span) return;
+    const original = span.textContent.trim();
+    if (!original || original === corrected) return;
+    span.textContent = '';
+    const strike = document.createElement('s');
+    strike.textContent = original;
+    span.appendChild(strike);
+    span.classList.add('stt-correcting');
+    setTimeout(() => {
+      span.classList.remove('stt-correcting');
+      span.textContent = corrected;
+      span.classList.add('stt-corrected');
+      setTimeout(() => span.classList.remove('stt-corrected'), 400);
+    }, 200);
+  }
+  function ensurePhoneBanner(streamId) {
+    if (currentPhoneStreamId === streamId) return;
+    currentPhoneStreamId = streamId;
+    clearEmptyState();
+    const banner = document.createElement('div');
+    banner.className = 'phone-call-banner';
+    banner.setAttribute('role', 'status');
+    banner.setAttribute('aria-live', 'polite');
+    banner.innerHTML =
+      '<span class="phone-emoji" aria-hidden="true">📞</span>' +
+      '<span class="phone-label">Phone call connected</span>' +
+      '<span class="live-dot" aria-hidden="true"></span>';
+    transcript.appendChild(banner);
+    const scroller = transcript.parentElement;
+    if (scroller) scroller.scrollTop = scroller.scrollHeight;
+  }
+
+  function escapeHtml(s) {
+    return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+  function fmtUSD(n) { return '$' + Number(n).toLocaleString('en-US'); }
+  function fmtEUR(n) { return '€' + Number(n).toLocaleString('en-US'); }
+
+  function renderRooms(rooms) {
+    if (!rooms || rooms.length === 0) {
+      roomsList.innerHTML = '<div class="empty-state">No rooms available.</div>';
+      return;
+    }
+    roomsList.innerHTML = rooms.map(r => `
+      <div class="room">
+        <div class="room-name">${escapeHtml(r.name_fr)}</div>
+        <div class="room-detail">${r.size_m2} m² · ${escapeHtml(r.beds)} · ${escapeHtml(r.view_en)}</div>
+        <div class="room-rate">${fmtEUR(r.rate_eur)} / ${fmtUSD(r.rate_usd)} per night</div>
+      </div>
+    `).join('');
+  }
+
+  function renderReservations(opts = {}) {
+    const flashCode = opts.flashCode || null;
+    if (!sessionReservations.length) {
+      reservationsList.innerHTML = '<div class="empty-state">No reservations yet.</div>';
+      return;
+    }
+    reservationsList.innerHTML = sessionReservations.slice().reverse().map(r => `
+      <div class="reservation${r.code === flashCode ? ' new' : ''}">
+        <div class="reservation-head">
+          <span class="reservation-code">${escapeHtml(r.code)}</span>
+          <span class="reservation-room">${escapeHtml(r.room_name_fr)}</span>
+        </div>
+        <div class="reservation-detail">${escapeHtml(r.guest_name)} · ${escapeHtml(r.arrival_date)} · ${r.nights} night(s) · ${r.num_guests} guest(s)</div>
+        <div class="reservation-total">${fmtEUR(r.total_eur)} / ${fmtUSD(r.total_usd)}</div>
+        ${r.special_requests ? `<div class="reservation-detail" style="margin-top:4px;font-style:italic">"${escapeHtml(r.special_requests)}"</div>` : ''}
+      </div>
+    `).join('');
+  }
+
+  function pushReservation(reservation) {
+    if (!reservation || !reservation.code) return;
+    if (sessionReservations.some(r => r.code === reservation.code)) return;
+    sessionReservations.push(reservation);
+    renderReservations({ flashCode: reservation.code });
+  }
+
+  async function loadHotel() {
+    try {
+      const r = await fetch('/api/hotel');
+      const data = await r.json();
+      renderRooms(data.rooms || []);
+    } catch (e) {
+      console.warn('hotel info load failed', e);
+    }
+  }
+
+  function handleCustomEvent(msg) {
+    if (msg.type === 'reservation_created' && msg.reservation) {
+      pushReservation(msg.reservation);
+    } else if (msg.type === 'stt_correction') {
+      applyTranscriptCorrection(msg.corrected);
+    } else if (msg.type === 'language_changed') {
+      setLanguagePill(msg.language);
+    }
+  }
+
+  async function startCall() {
+    micBtn.classList.add('active');
+    setStatus('connecting', 'Connecting…');
+    setCallMeta('Call in progress', 'You may speak now.');
+    resetTranscript();
+
+    try {
+      const audioConfig = await fetch('/api/audio-config').then(r => r.json());
+
+      player = new SyncedAudioPlayer({
+        basePath: '/static/js',
+        sampleRate: 24000,
+        pcmOutput: audioConfig.pcm || false,
+        echoCancellation: echoCb.checked,
+        onEncodedAudio: (opusData) => {
+          if (isRecording && ws?.readyState === WebSocket.OPEN) ws.send(opusData);
+        },
+        onText: ({ text, turnIdx, isUser }) => appendTranscript(text, turnIdx, isUser),
+        onEvent: (eventType, msg) => handleCustomEvent(msg),
+      });
+
+      await player.start();
+
+      const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+      ws = new WebSocket(`${protocol}//${location.host}/ws/chat`);
+
+      ws.onopen = () => {
+        ws.send(JSON.stringify({ type: 'start', speed: 1.0 }));
+        isRecording = true;
+        setStatus('connected', 'On call');
+      };
+      ws.onmessage = (event) => player.handleMessage(event.data);
+      ws.onclose = () => endCall();
+      ws.onerror = () => setStatus('error', 'Connection error');
+    } catch (e) {
+      console.error(e);
+      setStatus('error', 'Failed to start');
+      micBtn.classList.remove('active');
+    }
+  }
+
+  function endCall() {
+    isRecording = false;
+    if (ws?.readyState === WebSocket.OPEN) {
+      try { ws.send(JSON.stringify({ type: 'stop' })); } catch (_) {}
+    }
+    ws?.close();
+    ws = null;
+    player?.stop();
+    player = null;
+    micBtn.classList.remove('active');
+    setStatus('', 'Idle');
+    setCallMeta('Start the call', 'Click the mic to speak with the concierge — French or English.');
+  }
+
+  micBtn.addEventListener('click', () => {
+    if (isRecording) endCall(); else startCall();
+  });
+
+  // ----- Phone-call SSE: live transcript from inbound Twilio calls -----
+  (function setupPhoneEvents() {
+    const sse = new EventSource('/api/phone-events');
+    sse.onmessage = (e) => {
+      let msg;
+      try { msg = JSON.parse(e.data); } catch (_) { return; }
+      if (msg.type === 'phone_stt') {
+        ensurePhoneBanner(msg.stream_id);
+        appendTranscript(msg.text, null, true);
+      } else if (msg.type === 'phone_tts') {
+        ensurePhoneBanner(msg.stream_id);
+        appendTranscript(msg.text, msg.turn_idx ?? null, false);
+      } else if (msg.type === 'stt_correction') {
+        applyTranscriptCorrection(msg.corrected);
+      } else if (msg.type === 'reservation_created' && msg.reservation) {
+        pushReservation(msg.reservation);
+      } else if (msg.type === 'language_changed') {
+        setLanguagePill(msg.language);
+      }
+    };
+    sse.onerror = () => {};
+  })();
+
+  loadHotel();
+})();
+</script>
+</body>
+</html>
