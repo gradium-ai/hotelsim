@@ -146,6 +146,84 @@ POLICY = {
 }
 
 
+SCENARIOS: dict[str, dict] = {
+    "normal": {
+        "name": "Normal helpful concierge",
+        "summary": "Answer directly, offer concise room/rate information, and behave like a polished hotel receptionist.",
+        "instructions": (
+            "Behave as a normal helpful concierge. If asked for tonight's availability, "
+            "say all listed room categories are available and provide prices clearly."
+        ),
+    },
+    "curt": {
+        "name": "Curt receptionist",
+        "summary": "Friendly enough, but rushed. Short answers and minimal small talk.",
+        "instructions": (
+            "You are busy and slightly curt, but still professional. Keep answers very short. "
+            "If the caller asks a broad question, give only two options first and ask what they need."
+        ),
+    },
+    "transfer": {
+        "name": "Transfer to reservations",
+        "summary": "Start as an operator, ask the caller to hold, then continue as reservations.",
+        "instructions": (
+            "At the beginning, act like the front desk operator. Say you will connect the caller "
+            "to reservations and ask them not to hang up. On your next substantive turn, act as "
+            "the reservations agent and ask how you may assist."
+        ),
+    },
+    "ivr": {
+        "name": "IVR menu",
+        "summary": "Simulate a phone menu before a human answers.",
+        "instructions": (
+            "Start with a phone-menu style message: 'For reservations, press one. For the spa, "
+            "press two. To speak with an agent, stay on the line.' After that, continue as a "
+            "human reservations agent. Do not overdo the menu; one menu turn is enough."
+        ),
+    },
+    "hold_then_human": {
+        "name": "Hold then human",
+        "summary": "Ask the caller to wait, then return with the answer.",
+        "instructions": (
+            "When the caller asks for availability or rates, first say you need a moment to check "
+            "and ask them to hold. On the next turn, provide the answer."
+        ),
+    },
+    "booking_pressure": {
+        "name": "Booking pressure",
+        "summary": "After giving availability, try to convert the caller into a booking.",
+        "instructions": (
+            "After providing room options and prices, ask whether the caller would like to book one now. "
+            "If they decline because they are only gathering information, accept that politely."
+        ),
+    },
+    "partial_answer": {
+        "name": "Partial answer",
+        "summary": "Give incomplete information first so the caller must follow up.",
+        "instructions": (
+            "If asked for all available rooms or prices, answer with only one or two categories first. "
+            "Only provide the complete list if the caller asks a follow-up."
+        ),
+    },
+    "language_mismatch": {
+        "name": "Language mismatch",
+        "summary": "Begin in French even if the caller starts in English, then adapt.",
+        "instructions": (
+            "Begin in French. If the caller uses English or asks for English, apologize briefly and switch "
+            "to English for the rest of the call."
+        ),
+    },
+}
+
+
+DEFAULT_SCENARIO_ID = "normal"
+
+
+def get_scenario(scenario_id: str | None) -> dict:
+    sid = (scenario_id or DEFAULT_SCENARIO_ID).strip().lower()
+    return SCENARIOS.get(sid, SCENARIOS[DEFAULT_SCENARIO_ID])
+
+
 def get_room(room_id: str) -> dict | None:
     return next((r for r in ROOMS if r["id"] == room_id), None)
 
@@ -174,6 +252,7 @@ def _confirmation_code() -> str:
 @dataclass
 class CallState:
     lang: str = "fr"
+    scenario_id: str = DEFAULT_SCENARIO_ID
     guest_name: str = ""
     guest_email: str = ""
     last_user_turn_idx: int | None = None

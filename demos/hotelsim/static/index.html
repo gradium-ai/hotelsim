@@ -187,6 +187,29 @@
     font-size: 12px; color: var(--ink-soft);
   }
   .call-options label { display: flex; align-items: center; gap: 6px; cursor: pointer; }
+  .scenario-select {
+    height: 32px;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    background: var(--paper);
+    color: var(--navy);
+    padding: 0 8px;
+    font: inherit;
+    font-size: 12px;
+    max-width: 190px;
+  }
+  .queue-btn {
+    height: 32px;
+    border: 1px solid var(--gold);
+    border-radius: 6px;
+    background: var(--gold-pale);
+    color: var(--navy);
+    padding: 0 10px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .queue-btn:hover { background: var(--gold-soft); }
 
   .transcript { display: flex; flex-direction: column; gap: 10px; }
   .msg {
@@ -371,6 +394,8 @@
           <div class="subtitle" id="callSubtitle">Click the mic to speak with the concierge — French or English.</div>
         </div>
         <div class="call-options">
+          <select id="scenarioSelect" class="scenario-select" title="Staging scenario"></select>
+          <button type="button" id="queueScenarioBtn" class="queue-btn">Queue phone test</button>
           <label><input type="checkbox" id="echoCancellation" checked> Echo cancel</label>
         </div>
       </div>
@@ -451,6 +476,8 @@
 
   const micBtn = document.getElementById('micBtn');
   const echoCb = document.getElementById('echoCancellation');
+  const scenarioSelect = document.getElementById('scenarioSelect');
+  const queueScenarioBtn = document.getElementById('queueScenarioBtn');
   const transcript = document.getElementById('transcript');
   const statusEl = document.getElementById('status');
   const callTitle = document.getElementById('callTitle');
@@ -484,6 +511,9 @@
     } else {
       langPill.textContent = 'FR / EN';
     }
+  }
+  function selectedScenario() {
+    return scenarioSelect?.value || 'normal';
   }
 
   function clearEmptyState() {
@@ -619,9 +649,19 @@
       const r = await fetch('/api/hotel');
       const data = await r.json();
       renderRooms(data.rooms || []);
+      renderScenarios(data.scenarios || {});
     } catch (e) {
       console.warn('hotel info load failed', e);
     }
+  }
+
+  function renderScenarios(scenarios) {
+    if (!scenarioSelect) return;
+    const entries = Object.entries(scenarios);
+    scenarioSelect.innerHTML = entries.map(([id, s]) =>
+      `<option value="${escapeHtml(id)}">${escapeHtml(s.name || id)}</option>`
+    ).join('');
+    if (!scenarioSelect.value) scenarioSelect.value = 'normal';
   }
 
   function handleCustomEvent(msg) {
@@ -661,7 +701,7 @@
       ws = new WebSocket(`${protocol}//${location.host}/ws/chat`);
 
       ws.onopen = () => {
-        ws.send(JSON.stringify({ type: 'start', speed: 1.0 }));
+        ws.send(JSON.stringify({ type: 'start', speed: 1.0, scenario: selectedScenario() }));
         isRecording = true;
         setStatus('connected', 'On call');
       };
@@ -692,6 +732,21 @@
   micBtn.addEventListener('click', () => {
     if (isRecording) endCall(); else startCall();
   });
+  queueScenarioBtn?.addEventListener('click', async () => {
+    const scenario = selectedScenario();
+    try {
+      const res = await fetch('/api/scenario/next', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({scenario}),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      setCallMeta('Phone scenario queued', 'The next inbound Twilio call will use: ' + scenarioSelect.options[scenarioSelect.selectedIndex].textContent);
+    } catch (e) {
+      console.warn('queue scenario failed', e);
+      setStatus('error', 'Scenario queue failed');
+    }
+  });
 
   // ----- Phone-call SSE: live transcript from inbound Twilio calls -----
   (function setupPhoneEvents() {
@@ -711,6 +766,8 @@
         pushReservation(msg.reservation);
       } else if (msg.type === 'language_changed') {
         setLanguagePill(msg.language);
+      } else if (msg.type === 'scenario_started') {
+        setCallMeta('Phone call in progress', 'Scenario: ' + (msg.scenario_name || msg.scenario));
       }
     };
     sse.onerror = () => {};
