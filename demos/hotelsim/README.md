@@ -51,13 +51,19 @@ auth on everything except `/twilio/*` (Twilio webhooks cannot authenticate).
 1. **DNS** — point `hotelsim.gradgtm.com` (A record) at the host's IP
    (`163.172.166.25`). Caddy will fetch a Let's Encrypt cert automatically once
    the DNS resolves.
-2. **Infisical project** — log in to Infisical, create (or duplicate) a project
-   for hotelsim. In env `dev`, add the secret:
-   - `GRADIUM_HOTELSIM_API_KEY` — the Gradium API key (used for both voice and
-     LLM routing). Optionally also `LLM_API_KEY` and `LLM_BASE_URL` if pointing
-     at an external LLM.
-   Copy the project ID and put it in `/etc/hotelsim/env` as
-   `HOTELSIM_INFISICAL_PROJECT_ID`.
+2. **Infisical secret** — hotelsim currently shares the ticatag Infisical
+   project (`c5cd7459-8df3-4d6a-b53f-4686cde222f1`); separation is by secret
+   naming, same convention medbot uses. The required secret in env `dev` is:
+   - `GRADIUM_HOTELSIM_API_KEY` — Gradium key (used for both voice and LLM
+     routing). The shared `LLM_API_KEY` / `LLM_BASE_URL` from the project work
+     for hotelsim too.
+   To migrate hotelsim to its own project later: create the project in the
+   Infisical web UI, grant the existing universal-auth machine identity access,
+   copy `GRADIUM_HOTELSIM_API_KEY` (and optionally `LLM_API_KEY`,
+   `LLM_BASE_URL`) into it, and update `HOTELSIM_INFISICAL_PROJECT_ID` in
+   `/etc/hotelsim/env`. The run script also force-overrides `PUBLIC_WS_URL`
+   inside the Infisical-injected env so the ticatag project's
+   `PUBLIC_WS_URL` does not leak into hotelsim's TwiML response.
 3. **Twilio** — on the active number `+1 573 679 3638`, set:
    - **A Call Comes In** → Webhook → `https://hotelsim.gradgtm.com/twilio/voice`
      — HTTP **POST**.
